@@ -82,7 +82,7 @@ func (b *EchoBot) HandleMessage(ctx context.Context, event interface{}) error {
 		for i, resource := range msgContent.Resources {
 			b.logger.Info("Resource info",
 				zap.Int("index", i),
-				zap.String("type", resource.Type),
+				zap.String("type", string(resource.Type)),
 				zap.String("file_key", resource.FileKey),
 				zap.String("file_name", resource.FileName),
 				zap.String("local_path", resource.LocalPath),
@@ -145,40 +145,38 @@ func (b *EchoBot) replyRichText(ctx context.Context, messageID string, msgConten
 
 	// 复制解析后的富文本内容
 	for _, line := range msgContent.RichText.Content {
-		lineElements := make([]message.RichTextElement, 0, len(line))
 		for _, elem := range line {
 			switch elem.Tag {
 			case "text":
-				lineElements = append(lineElements, &message.RichTextText{Text: elem.Text, UnEscape: false, Style: elem.Style})
+				builder.AddTextWithStyle(elem.Text, elem.Style...)
 			case "a":
-				lineElements = append(lineElements, &message.RichTextA{Text: elem.Text, Href: elem.Href, UnEscape: false, Style: elem.Style})
+				builder.AddLinkWithStyle(elem.Text, elem.Href, elem.Style...)
 			case "at":
-				lineElements = append(lineElements, &message.RichTextAt{UserId: elem.UserId, UserName: elem.UserName, Style: elem.Style})
+				builder.AddAtWithStyle(elem.UserId, elem.UserName, elem.Style...)
 			case "img":
 				// 先尝试用映射的 key
 				if newImageKey, exists := imageKeyMap[elem.ImageKey]; exists {
 					b.logger.Info("Using mapped image key", zap.String("old_key", elem.ImageKey), zap.String("new_key", newImageKey))
-					lineElements = append(lineElements, &message.RichTextImg{ImageKey: newImageKey})
+					builder.AddImage(newImageKey)
 				} else {
 					// 如果没有映射，直接使用原 image_key
 					b.logger.Info("Using original image key directly", zap.String("image_key", elem.ImageKey))
-					lineElements = append(lineElements, &message.RichTextImg{ImageKey: elem.ImageKey})
+					builder.AddImage(elem.ImageKey)
 				}
 			case "media":
-				lineElements = append(lineElements, &message.RichTextMedia{FileKey: elem.FileKey, ImageKey: elem.ImageKey})
+				builder.AddMedia(elem.FileKey, elem.ImageKey)
 			case "emotion":
-				lineElements = append(lineElements, &message.RichTextEmotion{EmojiType: elem.EmojiType})
+				builder.AddEmotion(message.EmojiType(elem.EmojiType))
 			case "hr":
-				lineElements = append(lineElements, &message.RichTextHr{})
+				builder.AddHr()
 			case "code_block":
-				lineElements = append(lineElements, &message.RichTextCodeBlock{Text: elem.Text, Language: elem.Language})
+				builder.AddCodeBlock(elem.Text, elem.Language)
 			case "md":
-				lineElements = append(lineElements, &message.RichTextMd{Text: elem.Text})
+				builder.AddMd(elem.Text)
 			}
 		}
-		if len(lineElements) > 0 {
-			builder.AddLine(lineElements...)
-		}
+		// 每一行处理完后换行
+		builder.NewLine()
 	}
 
 	// 添加"已收到"的新行

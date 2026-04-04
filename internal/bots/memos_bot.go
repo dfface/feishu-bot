@@ -84,7 +84,7 @@ func (b *MemosBot) HandleMessage(ctx context.Context, event interface{}) error {
 	// 第二步：处理已下载的资源，上传到 Memos 并关联到 Memo
 	for _, res := range msgContent.Resources {
 		if !res.Downloaded {
-			b.logger.Warn("Resource not downloaded", zap.String("type", res.Type))
+			b.logger.Warn("Resource not downloaded", zap.String("type", string(res.Type)))
 			continue
 		}
 

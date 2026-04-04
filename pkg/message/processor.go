@@ -13,116 +13,25 @@ import (
 	"go.uber.org/zap"
 )
 
-// ParsedRichTextElement 解析后的富文本元素
-// 用于存储从飞书富文本消息中解析出的结构化元素
-// 支持所有富文本元素类型：text、a、at、img、media、emotion、hr、code_block、md
-
-type ParsedRichTextElement struct {
-	Tag       string   `json:"tag"`                  // 元素类型：text、a、at、img、media、emotion、hr、code_block、md
-	Text      string   `json:"text,omitempty"`       // 文本内容，用于 text、a、code_block、md 元素
-	Href      string   `json:"href,omitempty"`       // 链接地址，用于 a 元素
-	UserId    string   `json:"user_id,omitempty"`    // 用户 ID，用于 at 元素
-	UserName  string   `json:"user_name,omitempty"`  // 用户名称，用于 at 元素
-	ImageKey  string   `json:"image_key,omitempty"`  // 图片 key，用于 img 元素
-	Width     int      `json:"width,omitempty"`      // 图片宽度，用于 img 元素
-	Height    int      `json:"height,omitempty"`     // 图片高度，用于 img 元素
-	FileType  string   `json:"file_type,omitempty"`  // 文件类型，用于 media 元素
-	FileKey   string   `json:"file_key,omitempty"`   // 文件 key，用于 media 元素
-	FileName  string   `json:"file_name,omitempty"`  // 文件名称，用于 media 元素
-	Duration  int      `json:"duration,omitempty"`   // 媒体时长，用于 media 元素
-	EmojiType string   `json:"emoji_type,omitempty"` // 表情类型，用于 emotion 元素
-	Style     []string `json:"style,omitempty"`      // 样式列表，支持：bold、italic、underline、lineThrough
-	Content   string   `json:"content,omitempty"`    // 内容，用于 code_block、md 等元素
-	Language  string   `json:"language,omitempty"`   // 代码语言，用于 code_block 元素
-}
-
-// ParsedRichTextContent 解析后的富文本内容
-// 存储完整的富文本消息结构，包括标题和所有元素
-
-type ParsedRichTextContent struct {
-	Title   string                    `json:"title"`   // 富文本标题
-	Content [][]ParsedRichTextElement `json:"content"` // 内容行列表，每行包含多个元素
-}
-
-// MessageContent 消息内容
-// 存储解析后的结构化消息内容，包含各种类型消息的详细信息
-
-type MessageContent struct {
-	Type          MessageType            // 消息类型：text、post、image、file、audio、media、sticker、interactive、share_chat、share_user、system、todo、vote
-	Text          string                 // 消息文本内容，对于文本消息是完整内容，对于其他消息是摘要
-	RawContent    *string                // 原始消息内容 JSON 字符串
-	RichText      *ParsedRichTextContent // 解析后的富文本结构，仅当消息类型为 post 时有效
-	Resources     []Resource             // 消息中包含的资源列表（图片、文件、音频、视频等）
-	Location      *Location              // 位置信息，仅当消息类型为 location 时有效
-	Sticker       *Sticker               // 表情贴纸信息，仅当消息类型为 sticker 时有效
-	Interactive   map[string]interface{} // 交互式卡片内容，仅当消息类型为 interactive 时有效
-	ShareChat     *ShareChat             // 分享的群聊信息，仅当消息类型为 share_chat 时有效
-	ShareUser     *ShareUser             // 分享的用户信息，仅当消息类型为 share_user 时有效
-	SystemMessage *SystemMessage         // 系统消息内容，仅当消息类型为 system 时有效
-	Todo          *Todo                  // 待办事项内容，仅当消息类型为 todo 时有效
-	Vote          *Vote                  // 投票内容，仅当消息类型为 vote 时有效
-}
-
-// Resource 资源信息
-// 存储消息中包含的资源（图片、文件、音频、视频等）的详细信息
-
-type Resource struct {
-	Type       string // 资源类型：image、file、audio、media
-	FileKey    string // 文件 key，用于下载和重新上传
-	FileName   string // 文件名称
-	ImageKey   string // 图片 key，用于图片资源
-	MessageID  string // 所属消息的 ID，用于下载资源
-	Duration   int    // 媒体时长（秒），用于音频和视频资源
-	LocalPath  string // 本地文件路径，下载后存储的位置
-	Downloaded bool   // 是否已下载到本地
-}
-
-// Location 位置信息
-type Location struct {
-	Name      string
-	Longitude string
-	Latitude  string
-}
-
-// Sticker 表情包信息
-type Sticker struct {
-	FileKey string
-}
-
-// ShareChat 群组名片信息
-type ShareChat struct {
-	ChatID string
-}
-
-// ShareUser 人名片信息
-type ShareUser struct {
-	UserID string
-}
-
-// SystemMessage 系统消息信息
-type SystemMessage struct {
-	Template string
-	Params   map[string]string
-}
-
-// Todo 待办任务信息
-type Todo struct {
-	TaskID string
-}
-
-// Vote 投票信息
-type Vote struct {
-	VoteID string
-}
-
 // Processor 消息处理器
+// 负责解析飞书 WebSocket 接收到的各种类型消息
+// 支持文本、富文本、图片、文件、音频、视频、表情包、位置、群组名片、人名片、系统消息等多种类型
 type Processor struct {
-	client  *lark.Client
-	logger  *zap.Logger
-	tempDir string
+	client  *lark.Client // 飞书 API 客户端
+	logger  *zap.Logger  // 日志记录器
+	tempDir string       // 临时文件存储目录，用于保存下载的资源
 }
 
 // NewProcessor 创建消息处理器
+//
+// 参数:
+//
+//	client - 飞书 API 客户端
+//	logger - 日志记录器
+//
+// 返回:
+//
+//	*Processor - 初始化好的消息处理器实例
 func NewProcessor(client *lark.Client, logger *zap.Logger) *Processor {
 	tempDir := filepath.Join(os.TempDir(), "feishu-bot-messages")
 	_ = os.MkdirAll(tempDir, 0755)
@@ -135,6 +44,17 @@ func NewProcessor(client *lark.Client, logger *zap.Logger) *Processor {
 }
 
 // Process 处理消息
+// 将飞书原始消息事件解析为结构化的 MessageContent
+//
+// 参数:
+//
+//	ctx - 上下文
+//	msg - 飞书原始消息事件
+//
+// 返回:
+//
+//	*MessageContent - 解析后的结构化消息内容
+//	error - 解析失败时返回错误
 func (p *Processor) Process(ctx context.Context, msg *larkim.EventMessage) (*MessageContent, error) {
 	if msg == nil || msg.MessageType == nil {
 		return nil, fmt.Errorf("invalid message")
@@ -323,6 +243,15 @@ func (p *Processor) Process(ctx context.Context, msg *larkim.EventMessage) (*Mes
 }
 
 // parseText 解析文本消息
+//
+// 参数:
+//
+//	content - 原始文本消息内容 JSON 字符串
+//
+// 返回:
+//
+//	string - 解析后的文本内容
+//	error - 解析失败时返回错误
 func (p *Processor) parseText(content *string) (string, error) {
 	if content == nil {
 		return "", nil
@@ -339,7 +268,18 @@ func (p *Processor) parseText(content *string) (string, error) {
 }
 
 // parsePost 解析富文本消息，返回文本、资源列表和解析后的富文本结构
-func (p *Processor) parsePost(content *string) (string, []Resource, *ParsedRichTextContent, error) {
+//
+// 参数:
+//
+//	content - 原始富文本消息内容 JSON 字符串
+//
+// 返回:
+//
+//	string - 纯文本摘要
+//	[]Resource - 收集到的资源列表（图片、媒体等）
+//	*RichTextContent - 解析后的结构化富文本内容
+//	error - 解析失败时返回错误
+func (p *Processor) parsePost(content *string) (string, []Resource, *RichTextContent, error) {
 	if content == nil {
 		return "", nil, nil, nil
 	}
@@ -371,9 +311,9 @@ func (p *Processor) parsePost(content *string) (string, []Resource, *ParsedRichT
 	seenFileKeys := make(map[string]bool)
 
 	// 构建富文本结构
-	richText := &ParsedRichTextContent{
+	richText := &RichTextContent{
 		Title:   post.Title,
-		Content: make([][]ParsedRichTextElement, len(post.Content)),
+		Content: make([][]*RichTextElement, len(post.Content)),
 	}
 
 	// 添加标题
@@ -383,10 +323,10 @@ func (p *Processor) parsePost(content *string) (string, []Resource, *ParsedRichT
 
 	// 解析内容
 	for rowIndex, row := range post.Content {
-		richText.Content[rowIndex] = make([]ParsedRichTextElement, len(row))
+		richText.Content[rowIndex] = make([]*RichTextElement, len(row))
 		for colIndex, segment := range row {
 			// 构建富文本元素
-			element := ParsedRichTextElement{
+			element := &RichTextElement{
 				Tag:       segment.Tag,
 				Text:      segment.Text,
 				Href:      segment.Href,
@@ -404,45 +344,45 @@ func (p *Processor) parsePost(content *string) (string, []Resource, *ParsedRichT
 			richText.Content[rowIndex][colIndex] = element
 
 			switch segment.Tag {
-			case "text":
+			case string(RichTextTagText):
 				result.WriteString(segment.Text)
-			case "a":
+			case string(RichTextTagA):
 				result.WriteString(fmt.Sprintf("[%s](%s)", segment.Text, segment.Href))
-			case "at":
+			case string(RichTextTagAt):
 				if segment.UserName != "" {
 					result.WriteString(fmt.Sprintf("@%s", segment.UserName))
 				} else {
 					result.WriteString(fmt.Sprintf("@%s", segment.UserId))
 				}
-			case "img":
+			case string(RichTextTagImg):
 				result.WriteString(fmt.Sprintf("[图片:%s]", segment.ImageKey))
 				// 收集图片资源
 				if segment.ImageKey != "" && !seenFileKeys[segment.ImageKey] {
 					resources = append(resources, Resource{
-						Type:     "image",
+						Type:     ResourceTypeImage,
 						FileKey:  segment.ImageKey,
 						ImageKey: segment.ImageKey,
 					})
 					seenFileKeys[segment.ImageKey] = true
 				}
-			case "media":
+			case string(RichTextTagMedia):
 				result.WriteString(fmt.Sprintf("[媒体:%s]", segment.FileKey))
 				// 收集媒体资源
 				if segment.FileKey != "" && !seenFileKeys[segment.FileKey] {
 					resources = append(resources, Resource{
-						Type:     "media",
+						Type:     ResourceTypeMedia,
 						FileKey:  segment.FileKey,
 						ImageKey: segment.ImageKey,
 					})
 					seenFileKeys[segment.FileKey] = true
 				}
-			case "emotion":
+			case string(RichTextTagEmotion):
 				result.WriteString(fmt.Sprintf("[表情:%s]", segment.EmojiType))
-			case "hr":
+			case string(RichTextTagHr):
 				result.WriteString("\n---\n")
-			case "code_block":
+			case string(RichTextTagCodeBlock):
 				result.WriteString(fmt.Sprintf("\n```%s\n%s\n```\n", segment.Language, segment.Text))
-			case "md":
+			case string(RichTextTagMd):
 				result.WriteString(segment.Text)
 			}
 		}
@@ -453,6 +393,15 @@ func (p *Processor) parsePost(content *string) (string, []Resource, *ParsedRichT
 }
 
 // parseImage 解析图片消息
+//
+// 参数:
+//
+//	content - 原始图片消息内容 JSON 字符串
+//
+// 返回:
+//
+//	Resource - 解析后的图片资源信息
+//	error - 解析失败时返回错误
 func (p *Processor) parseImage(content *string) (Resource, error) {
 	if content == nil {
 		return Resource{}, fmt.Errorf("empty content")
@@ -466,13 +415,22 @@ func (p *Processor) parseImage(content *string) (Resource, error) {
 	}
 
 	return Resource{
-		Type:     "image",
+		Type:     ResourceTypeImage,
 		FileKey:  imageContent.ImageKey,
 		ImageKey: imageContent.ImageKey,
 	}, nil
 }
 
 // parseFile 解析文件消息
+//
+// 参数:
+//
+//	content - 原始文件消息内容 JSON 字符串
+//
+// 返回:
+//
+//	Resource - 解析后的文件资源信息
+//	error - 解析失败时返回错误
 func (p *Processor) parseFile(content *string) (Resource, error) {
 	if content == nil {
 		return Resource{}, fmt.Errorf("empty content")
@@ -487,13 +445,22 @@ func (p *Processor) parseFile(content *string) (Resource, error) {
 	}
 
 	return Resource{
-		Type:     "file",
+		Type:     ResourceTypeFile,
 		FileKey:  fileContent.FileKey,
 		FileName: fileContent.FileName,
 	}, nil
 }
 
 // parseAudio 解析音频消息
+//
+// 参数:
+//
+//	content - 原始音频消息内容 JSON 字符串
+//
+// 返回:
+//
+//	Resource - 解析后的音频资源信息
+//	error - 解析失败时返回错误
 func (p *Processor) parseAudio(content *string) (Resource, error) {
 	if content == nil {
 		return Resource{}, fmt.Errorf("empty content")
@@ -508,13 +475,22 @@ func (p *Processor) parseAudio(content *string) (Resource, error) {
 	}
 
 	return Resource{
-		Type:     "audio",
+		Type:     ResourceTypeAudio,
 		FileKey:  audioContent.FileKey,
 		Duration: audioContent.Duration,
 	}, nil
 }
 
 // parseMedia 解析视频消息
+//
+// 参数:
+//
+//	content - 原始视频消息内容 JSON 字符串
+//
+// 返回:
+//
+//	Resource - 解析后的视频资源信息
+//	error - 解析失败时返回错误
 func (p *Processor) parseMedia(content *string) (Resource, error) {
 	if content == nil {
 		return Resource{}, fmt.Errorf("empty content")
@@ -531,7 +507,7 @@ func (p *Processor) parseMedia(content *string) (Resource, error) {
 	}
 
 	return Resource{
-		Type:     "media",
+		Type:     ResourceTypeMedia,
 		FileKey:  mediaContent.FileKey,
 		ImageKey: mediaContent.ImageKey,
 		FileName: mediaContent.FileName,
@@ -540,6 +516,15 @@ func (p *Processor) parseMedia(content *string) (Resource, error) {
 }
 
 // parseLocation 解析位置消息
+//
+// 参数:
+//
+//	content - 原始位置消息内容 JSON 字符串
+//
+// 返回:
+//
+//	*Location - 解析后的位置信息
+//	error - 解析失败时返回错误
 func (p *Processor) parseLocation(content *string) (*Location, error) {
 	if content == nil {
 		return nil, fmt.Errorf("empty content")
@@ -562,6 +547,15 @@ func (p *Processor) parseLocation(content *string) (*Location, error) {
 }
 
 // parseMergeForward 解析合并转发消息
+//
+// 参数:
+//
+//	content - 原始合并转发消息内容 JSON 字符串
+//
+// 返回:
+//
+//	string - 解析后的文本摘要
+//	error - 解析失败时返回错误
 func (p *Processor) parseMergeForward(content *string) (string, error) {
 	if content == nil {
 		return "", fmt.Errorf("empty content")
@@ -578,6 +572,16 @@ func (p *Processor) parseMergeForward(content *string) (string, error) {
 }
 
 // downloadResource 下载资源到本地
+// 使用飞书 API 的 MessageResource.Get() 接口下载消息中的资源文件
+//
+// 参数:
+//
+//	ctx - 上下文
+//	resource - 要下载的资源信息（包含 MessageID、FileKey 等）
+//
+// 返回:
+//
+//	error - 下载失败时返回错误
 func (p *Processor) downloadResource(ctx context.Context, resource *Resource) error {
 	if resource.MessageID == "" {
 		return fmt.Errorf("no message id")
@@ -587,16 +591,16 @@ func (p *Processor) downloadResource(ctx context.Context, resource *Resource) er
 	var fileKey string
 	var resourceType string
 	switch resource.Type {
-	case "image":
+	case ResourceTypeImage:
 		if resource.ImageKey != "" {
 			fileKey = resource.ImageKey
 		} else {
 			fileKey = resource.FileKey
 		}
-		resourceType = "image"
+		resourceType = string(ResourceTypeImage)
 	default:
 		fileKey = resource.FileKey
-		resourceType = "file"
+		resourceType = string(ResourceTypeFile)
 	}
 
 	if fileKey == "" {
@@ -615,12 +619,12 @@ func (p *Processor) downloadResource(ctx context.Context, resource *Resource) er
 		return err
 	}
 
-	// 构建本地路径
-	localPath := filepath.Join(p.tempDir, resp.FileName)
-
 	if !resp.Success() {
 		return fmt.Errorf("failed to get message resource: code=%d, msg=%s", resp.Code, resp.Msg)
 	}
+
+	// 构建本地路径
+	localPath := filepath.Join(p.tempDir, resp.FileName)
 
 	// 使用 SDK 提供的方法保存文件
 	if err := resp.WriteFile(localPath); err != nil {
@@ -632,7 +636,7 @@ func (p *Processor) downloadResource(ctx context.Context, resource *Resource) er
 	resource.Downloaded = true
 
 	p.logger.Info("Resource downloaded",
-		zap.String("type", resource.Type),
+		zap.String("type", string(resource.Type)),
 		zap.String("message_id", resource.MessageID),
 		zap.String("file_key", fileKey),
 		zap.String("path", localPath))
@@ -640,6 +644,15 @@ func (p *Processor) downloadResource(ctx context.Context, resource *Resource) er
 }
 
 // parseSticker 解析表情包消息
+//
+// 参数:
+//
+//	content - 原始表情包消息内容 JSON 字符串
+//
+// 返回:
+//
+//	*Sticker - 解析后的表情包信息
+//	error - 解析失败时返回错误
 func (p *Processor) parseSticker(content *string) (*Sticker, error) {
 	if content == nil {
 		return nil, fmt.Errorf("empty content")
@@ -658,6 +671,15 @@ func (p *Processor) parseSticker(content *string) (*Sticker, error) {
 }
 
 // parseInteractive 解析交互式消息
+//
+// 参数:
+//
+//	content - 原始交互式消息内容 JSON 字符串
+//
+// 返回:
+//
+//	map[string]interface{} - 解析后的交互式卡片内容
+//	error - 解析失败时返回错误
 func (p *Processor) parseInteractive(content *string) (map[string]interface{}, error) {
 	if content == nil {
 		return nil, fmt.Errorf("empty content")
@@ -672,6 +694,15 @@ func (p *Processor) parseInteractive(content *string) (map[string]interface{}, e
 }
 
 // parseRedPacket 解析红包消息
+//
+// 参数:
+//
+//	content - 原始红包消息内容 JSON 字符串
+//
+// 返回:
+//
+//	string - 解析后的文本摘要
+//	error - 解析失败时返回错误
 func (p *Processor) parseRedPacket(content *string) (string, error) {
 	if content == nil {
 		return "", fmt.Errorf("empty content")
@@ -688,6 +719,15 @@ func (p *Processor) parseRedPacket(content *string) (string, error) {
 }
 
 // parseShareChat 解析群组名片
+//
+// 参数:
+//
+//	content - 原始群组名片消息内容 JSON 字符串
+//
+// 返回:
+//
+//	*ShareChat - 解析后的群组名片信息
+//	error - 解析失败时返回错误
 func (p *Processor) parseShareChat(content *string) (*ShareChat, error) {
 	if content == nil {
 		return nil, fmt.Errorf("empty content")
@@ -706,6 +746,15 @@ func (p *Processor) parseShareChat(content *string) (*ShareChat, error) {
 }
 
 // parseShareUser 解析人名片
+//
+// 参数:
+//
+//	content - 原始人名片消息内容 JSON 字符串
+//
+// 返回:
+//
+//	*ShareUser - 解析后的人名片信息
+//	error - 解析失败时返回错误
 func (p *Processor) parseShareUser(content *string) (*ShareUser, error) {
 	if content == nil {
 		return nil, fmt.Errorf("empty content")
@@ -724,6 +773,15 @@ func (p *Processor) parseShareUser(content *string) (*ShareUser, error) {
 }
 
 // parseSystemMessage 解析系统消息
+//
+// 参数:
+//
+//	content - 原始系统消息内容 JSON 字符串
+//
+// 返回:
+//
+//	*SystemMessage - 解析后的系统消息内容
+//	error - 解析失败时返回错误
 func (p *Processor) parseSystemMessage(content *string) (*SystemMessage, error) {
 	if content == nil {
 		return nil, fmt.Errorf("empty content")
@@ -749,6 +807,15 @@ func (p *Processor) parseSystemMessage(content *string) (*SystemMessage, error) 
 }
 
 // parseTodo 解析待办任务消息
+//
+// 参数:
+//
+//	content - 原始待办任务消息内容 JSON 字符串
+//
+// 返回:
+//
+//	*Todo - 解析后的待办任务信息
+//	error - 解析失败时返回错误
 func (p *Processor) parseTodo(content *string) (*Todo, error) {
 	if content == nil {
 		return nil, fmt.Errorf("empty content")
@@ -767,6 +834,15 @@ func (p *Processor) parseTodo(content *string) (*Todo, error) {
 }
 
 // parseVote 解析投票消息
+//
+// 参数:
+//
+//	content - 原始投票消息内容 JSON 字符串
+//
+// 返回:
+//
+//	*Vote - 解析后的投票信息
+//	error - 解析失败时返回错误
 func (p *Processor) parseVote(content *string) (*Vote, error) {
 	if content == nil {
 		return nil, fmt.Errorf("empty content")
@@ -785,6 +861,15 @@ func (p *Processor) parseVote(content *string) (*Vote, error) {
 }
 
 // parseFolder 解析文件夹消息
+//
+// 参数:
+//
+//	content - 原始文件夹消息内容 JSON 字符串
+//
+// 返回:
+//
+//	string - 解析后的文本摘要
+//	error - 解析失败时返回错误
 func (p *Processor) parseFolder(content *string) (string, error) {
 	if content == nil {
 		return "", fmt.Errorf("empty content")
@@ -801,6 +886,15 @@ func (p *Processor) parseFolder(content *string) (string, error) {
 }
 
 // parseCalendar 解析日历消息
+//
+// 参数:
+//
+//	content - 原始日历消息内容 JSON 字符串
+//
+// 返回:
+//
+//	string - 解析后的文本摘要
+//	error - 解析失败时返回错误
 func (p *Processor) parseCalendar(content *string) (string, error) {
 	if content == nil {
 		return "", fmt.Errorf("empty content")
@@ -817,6 +911,15 @@ func (p *Processor) parseCalendar(content *string) (string, error) {
 }
 
 // parseVideoChat 解析视频会议消息
+//
+// 参数:
+//
+//	content - 原始视频会议消息内容 JSON 字符串
+//
+// 返回:
+//
+//	string - 解析后的文本摘要
+//	error - 解析失败时返回错误
 func (p *Processor) parseVideoChat(content *string) (string, error) {
 	if content == nil {
 		return "", fmt.Errorf("empty content")
