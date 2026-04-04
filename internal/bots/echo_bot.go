@@ -2,7 +2,6 @@ package bots
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 
 	lark "github.com/larksuite/oapi-sdk-go/v3"
@@ -113,30 +112,26 @@ func (b *EchoBot) HandleCardAction(ctx context.Context, event interface{}) error
 
 // replyRichText 回复富文本消息
 func (b *EchoBot) replyRichText(ctx context.Context, messageID string, msgContent *message.MessageContent) error {
-	if msgContent.RawContent == nil {
-		// 如果没有原始内容，回退到文本回复
+	if msgContent.RichText == nil {
+		// 如果没有解析后的富文本，回退到文本回复
 		replyContent := fmt.Sprintf("%s\n已收到", msgContent.Text)
 		return b.replyText(ctx, messageID, replyContent)
 	}
 
-	// 解析原始富文本内容
-	var postContent map[string]interface{}
-	if err := json.Unmarshal([]byte(*msgContent.RawContent), &postContent); err != nil {
-		b.logger.Error("Failed to parse rich text content", zap.Error(err))
-		// 回退到文本回复
-		replyContent := fmt.Sprintf("%s\n已收到", msgContent.Text)
-		return b.replyText(ctx, messageID, replyContent)
-	}
-
-	// 创建旧 image_key 到新 image_key 的映射（直接使用原 image_key，不重新上传）
+	// 创建旧 image_key 到新 image_key 的映射
 	imageKeyMap := make(map[string]string)
 
-	// 先尝试使用 msgContent.Resources 中的资源
+	// 重新上传所有图片资源
 	for _, resource := range msgContent.Resources {
-		if resource.Type == "image" {
-			// 直接使用原 image_key
-			imageKeyMap[resource.FileKey] = resource.FileKey
-			b.logger.Info("Using original image key", zap.String("file_key", resource.FileKey))
+		if resource.Type == "image" && resource.Downloaded && resource.LocalPath != "" {
+			b.logger.Info("Re-uploading image for rich text", zap.String("file_key", resource.FileKey), zap.String("local_path", resource.LocalPath))
+			newImageKey, err := b.fileUploader.UploadImage(ctx, resource.LocalPath, message.ImageTypeMessage)
+			if err != nil {
+				b.logger.Error("Failed to re-upload image", zap.String("file_key", resource.FileKey), zap.Error(err))
+				continue
+			}
+			imageKeyMap[resource.FileKey] = newImageKey
+			b.logger.Info("Image re-uploaded successfully", zap.String("old_key", resource.FileKey), zap.String("new_key", newImageKey))
 		}
 	}
 
@@ -144,77 +139,45 @@ func (b *EchoBot) replyRichText(ctx context.Context, messageID string, msgConten
 	builder := message.NewRichTextMessageBuilder()
 
 	// 如果有标题，设置标题
-	if title, ok := postContent["title"].(string); ok && title != "" {
-		builder.SetTitle(title)
+	if msgContent.RichText.Title != "" {
+		builder.SetTitle(msgContent.RichText.Title)
 	}
 
-	// 复制原始内容
-	if content, ok := postContent["content"].([]interface{}); ok {
-		for _, line := range content {
-			if elements, ok := line.([]interface{}); ok {
-				lineElements := make([]message.RichTextElement, 0, len(elements))
-				for _, elem := range elements {
-					if elemMap, ok := elem.(map[string]interface{}); ok {
-						if tag, ok := elemMap["tag"].(string); ok {
-							switch tag {
-							case "text":
-								if text, ok := elemMap["text"].(string); ok {
-									lineElements = append(lineElements, &message.RichTextText{Text: text, UnEscape: false})
-								}
-							case "a":
-								if text, ok := elemMap["text"].(string); ok {
-									if href, ok := elemMap["href"].(string); ok {
-										lineElements = append(lineElements, &message.RichTextA{Text: text, Href: href, UnEscape: false})
-									}
-								}
-							case "at":
-								if userID, ok := elemMap["user_id"].(string); ok {
-									if userName, ok := elemMap["user_name"].(string); ok {
-										lineElements = append(lineElements, &message.RichTextAt{UserId: userID, UserName: userName})
-									} else {
-										lineElements = append(lineElements, &message.RichTextAt{UserId: userID})
-									}
-								}
-							case "img":
-								if imageKey, ok := elemMap["image_key"].(string); ok {
-									// 先尝试用映射的 key
-									if newImageKey, exists := imageKeyMap[imageKey]; exists {
-										b.logger.Info("Using mapped image key", zap.String("old_key", imageKey), zap.String("new_key", newImageKey))
-										lineElements = append(lineElements, &message.RichTextImg{ImageKey: newImageKey})
-									} else {
-										// 如果没有映射，直接使用原 image_key
-										b.logger.Info("Using original image key directly", zap.String("image_key", imageKey))
-										lineElements = append(lineElements, &message.RichTextImg{ImageKey: imageKey})
-									}
-								}
-							case "media":
-								if fileKey, ok := elemMap["file_key"].(string); ok {
-									imageKey, _ := elemMap["image_key"].(string)
-									lineElements = append(lineElements, &message.RichTextMedia{FileKey: fileKey, ImageKey: imageKey})
-								}
-							case "emotion":
-								if emojiType, ok := elemMap["emoji_type"].(string); ok {
-									lineElements = append(lineElements, &message.RichTextEmotion{EmojiType: emojiType})
-								}
-							case "hr":
-								lineElements = append(lineElements, &message.RichTextHr{})
-							case "code_block":
-								if text, ok := elemMap["text"].(string); ok {
-									language, _ := elemMap["language"].(string)
-									lineElements = append(lineElements, &message.RichTextCodeBlock{Text: text, Language: language})
-								}
-							case "md":
-								if text, ok := elemMap["text"].(string); ok {
-									lineElements = append(lineElements, &message.RichTextMd{Text: text})
-								}
-							}
-						}
-					}
+	// 复制解析后的富文本内容
+	for _, line := range msgContent.RichText.Content {
+		lineElements := make([]message.RichTextElement, 0, len(line))
+		for _, elem := range line {
+			switch elem.Tag {
+			case "text":
+				lineElements = append(lineElements, &message.RichTextText{Text: elem.Text, UnEscape: false, Style: elem.Style})
+			case "a":
+				lineElements = append(lineElements, &message.RichTextA{Text: elem.Text, Href: elem.Href, UnEscape: false, Style: elem.Style})
+			case "at":
+				lineElements = append(lineElements, &message.RichTextAt{UserId: elem.UserId, UserName: elem.UserName, Style: elem.Style})
+			case "img":
+				// 先尝试用映射的 key
+				if newImageKey, exists := imageKeyMap[elem.ImageKey]; exists {
+					b.logger.Info("Using mapped image key", zap.String("old_key", elem.ImageKey), zap.String("new_key", newImageKey))
+					lineElements = append(lineElements, &message.RichTextImg{ImageKey: newImageKey})
+				} else {
+					// 如果没有映射，直接使用原 image_key
+					b.logger.Info("Using original image key directly", zap.String("image_key", elem.ImageKey))
+					lineElements = append(lineElements, &message.RichTextImg{ImageKey: elem.ImageKey})
 				}
-				if len(lineElements) > 0 {
-					builder.AddLine(lineElements...)
-				}
+			case "media":
+				lineElements = append(lineElements, &message.RichTextMedia{FileKey: elem.FileKey, ImageKey: elem.ImageKey})
+			case "emotion":
+				lineElements = append(lineElements, &message.RichTextEmotion{EmojiType: elem.EmojiType})
+			case "hr":
+				lineElements = append(lineElements, &message.RichTextHr{})
+			case "code_block":
+				lineElements = append(lineElements, &message.RichTextCodeBlock{Text: elem.Text, Language: elem.Language})
+			case "md":
+				lineElements = append(lineElements, &message.RichTextMd{Text: elem.Text})
 			}
+		}
+		if len(lineElements) > 0 {
+			builder.AddLine(lineElements...)
 		}
 	}
 

@@ -13,31 +13,68 @@ import (
 	"go.uber.org/zap"
 )
 
+// ParsedRichTextElement 解析后的富文本元素
+// 用于存储从飞书富文本消息中解析出的结构化元素
+// 支持所有富文本元素类型：text、a、at、img、media、emotion、hr、code_block、md
+
+type ParsedRichTextElement struct {
+	Tag       string   `json:"tag"`                  // 元素类型：text、a、at、img、media、emotion、hr、code_block、md
+	Text      string   `json:"text,omitempty"`       // 文本内容，用于 text、a、code_block、md 元素
+	Href      string   `json:"href,omitempty"`       // 链接地址，用于 a 元素
+	UserId    string   `json:"user_id,omitempty"`    // 用户 ID，用于 at 元素
+	UserName  string   `json:"user_name,omitempty"`  // 用户名称，用于 at 元素
+	ImageKey  string   `json:"image_key,omitempty"`  // 图片 key，用于 img 元素
+	Width     int      `json:"width,omitempty"`      // 图片宽度，用于 img 元素
+	Height    int      `json:"height,omitempty"`     // 图片高度，用于 img 元素
+	FileType  string   `json:"file_type,omitempty"`  // 文件类型，用于 media 元素
+	FileKey   string   `json:"file_key,omitempty"`   // 文件 key，用于 media 元素
+	FileName  string   `json:"file_name,omitempty"`  // 文件名称，用于 media 元素
+	Duration  int      `json:"duration,omitempty"`   // 媒体时长，用于 media 元素
+	EmojiType string   `json:"emoji_type,omitempty"` // 表情类型，用于 emotion 元素
+	Style     []string `json:"style,omitempty"`      // 样式列表，支持：bold、italic、underline、lineThrough
+	Content   string   `json:"content,omitempty"`    // 内容，用于 code_block、md 等元素
+	Language  string   `json:"language,omitempty"`   // 代码语言，用于 code_block 元素
+}
+
+// ParsedRichTextContent 解析后的富文本内容
+// 存储完整的富文本消息结构，包括标题和所有元素
+
+type ParsedRichTextContent struct {
+	Title   string                    `json:"title"`   // 富文本标题
+	Content [][]ParsedRichTextElement `json:"content"` // 内容行列表，每行包含多个元素
+}
+
 // MessageContent 消息内容
+// 存储解析后的结构化消息内容，包含各种类型消息的详细信息
+
 type MessageContent struct {
-	Type          MessageType
-	Text          string
-	RawContent    *string // 原始消息内容 JSON 字符串
-	Resources     []Resource
-	Location      *Location
-	Sticker       *Sticker
-	Interactive   map[string]interface{}
-	ShareChat     *ShareChat
-	ShareUser     *ShareUser
-	SystemMessage *SystemMessage
-	Todo          *Todo
-	Vote          *Vote
+	Type          MessageType            // 消息类型：text、post、image、file、audio、media、sticker、interactive、share_chat、share_user、system、todo、vote
+	Text          string                 // 消息文本内容，对于文本消息是完整内容，对于其他消息是摘要
+	RawContent    *string                // 原始消息内容 JSON 字符串
+	RichText      *ParsedRichTextContent // 解析后的富文本结构，仅当消息类型为 post 时有效
+	Resources     []Resource             // 消息中包含的资源列表（图片、文件、音频、视频等）
+	Location      *Location              // 位置信息，仅当消息类型为 location 时有效
+	Sticker       *Sticker               // 表情贴纸信息，仅当消息类型为 sticker 时有效
+	Interactive   map[string]interface{} // 交互式卡片内容，仅当消息类型为 interactive 时有效
+	ShareChat     *ShareChat             // 分享的群聊信息，仅当消息类型为 share_chat 时有效
+	ShareUser     *ShareUser             // 分享的用户信息，仅当消息类型为 share_user 时有效
+	SystemMessage *SystemMessage         // 系统消息内容，仅当消息类型为 system 时有效
+	Todo          *Todo                  // 待办事项内容，仅当消息类型为 todo 时有效
+	Vote          *Vote                  // 投票内容，仅当消息类型为 vote 时有效
 }
 
 // Resource 资源信息
+// 存储消息中包含的资源（图片、文件、音频、视频等）的详细信息
+
 type Resource struct {
-	Type       string
-	FileKey    string
-	FileName   string
-	ImageKey   string
-	Duration   int
-	LocalPath  string // 本地文件路径
-	Downloaded bool   // 是否已下载
+	Type       string // 资源类型：image、file、audio、media
+	FileKey    string // 文件 key，用于下载和重新上传
+	FileName   string // 文件名称
+	ImageKey   string // 图片 key，用于图片资源
+	MessageID  string // 所属消息的 ID，用于下载资源
+	Duration   int    // 媒体时长（秒），用于音频和视频资源
+	LocalPath  string // 本地文件路径，下载后存储的位置
+	Downloaded bool   // 是否已下载到本地
 }
 
 // Location 位置信息
@@ -118,13 +155,15 @@ func (p *Processor) Process(ctx context.Context, msg *larkim.EventMessage) (*Mes
 		content.Text = text
 
 	case MessageTypePost:
-		post, resources, err := p.parsePost(msg.Content)
+		post, resources, richText, err := p.parsePost(msg.Content)
 		if err != nil {
 			return nil, err
 		}
 		content.Text = post
+		content.RichText = richText
 		// 下载富文本中的所有资源
 		for i := range resources {
+			resources[i].MessageID = *msg.MessageId
 			if err := p.downloadResource(ctx, &resources[i]); err != nil {
 				p.logger.Warn("Failed to download resource from rich text", zap.Error(err))
 			} else {
@@ -137,6 +176,7 @@ func (p *Processor) Process(ctx context.Context, msg *larkim.EventMessage) (*Mes
 		if err != nil {
 			return nil, err
 		}
+		resource.MessageID = *msg.MessageId
 		// 下载图片
 		if err := p.downloadResource(ctx, &resource); err != nil {
 			p.logger.Warn("Failed to download image", zap.Error(err))
@@ -148,6 +188,7 @@ func (p *Processor) Process(ctx context.Context, msg *larkim.EventMessage) (*Mes
 		if err != nil {
 			return nil, err
 		}
+		resource.MessageID = *msg.MessageId
 		// 下载文件
 		if err := p.downloadResource(ctx, &resource); err != nil {
 			p.logger.Warn("Failed to download file", zap.Error(err))
@@ -159,6 +200,7 @@ func (p *Processor) Process(ctx context.Context, msg *larkim.EventMessage) (*Mes
 		if err != nil {
 			return nil, err
 		}
+		resource.MessageID = *msg.MessageId
 		// 下载音频
 		if err := p.downloadResource(ctx, &resource); err != nil {
 			p.logger.Warn("Failed to download audio", zap.Error(err))
@@ -170,6 +212,7 @@ func (p *Processor) Process(ctx context.Context, msg *larkim.EventMessage) (*Mes
 		if err != nil {
 			return nil, err
 		}
+		resource.MessageID = *msg.MessageId
 		// 下载视频
 		if err := p.downloadResource(ctx, &resource); err != nil {
 			p.logger.Warn("Failed to download media", zap.Error(err))
@@ -295,10 +338,10 @@ func (p *Processor) parseText(content *string) (string, error) {
 	return textContent.Text, nil
 }
 
-// parsePost 解析富文本消息，返回文本和资源列表
-func (p *Processor) parsePost(content *string) (string, []Resource, error) {
+// parsePost 解析富文本消息，返回文本、资源列表和解析后的富文本结构
+func (p *Processor) parsePost(content *string) (string, []Resource, *ParsedRichTextContent, error) {
 	if content == nil {
-		return "", nil, nil
+		return "", nil, nil, nil
 	}
 
 	var post struct {
@@ -314,16 +357,24 @@ func (p *Processor) parsePost(content *string) (string, []Resource, error) {
 			FileKey   string   `json:"file_key,omitempty"`
 			UserId    string   `json:"user_id,omitempty"`
 			UserName  string   `json:"user_name,omitempty"`
+			Width     int      `json:"width,omitempty"`
+			Height    int      `json:"height,omitempty"`
 		}
 	}
 
 	if err := json.Unmarshal([]byte(*content), &post); err != nil {
-		return "", nil, err
+		return "", nil, nil, err
 	}
 
 	var result strings.Builder
 	resources := make([]Resource, 0)
 	seenFileKeys := make(map[string]bool)
+
+	// 构建富文本结构
+	richText := &ParsedRichTextContent{
+		Title:   post.Title,
+		Content: make([][]ParsedRichTextElement, len(post.Content)),
+	}
 
 	// 添加标题
 	if post.Title != "" {
@@ -331,8 +382,27 @@ func (p *Processor) parsePost(content *string) (string, []Resource, error) {
 	}
 
 	// 解析内容
-	for _, row := range post.Content {
-		for _, segment := range row {
+	for rowIndex, row := range post.Content {
+		richText.Content[rowIndex] = make([]ParsedRichTextElement, len(row))
+		for colIndex, segment := range row {
+			// 构建富文本元素
+			element := ParsedRichTextElement{
+				Tag:       segment.Tag,
+				Text:      segment.Text,
+				Href:      segment.Href,
+				Style:     segment.Style,
+				ImageKey:  segment.ImageKey,
+				FileKey:   segment.FileKey,
+				UserId:    segment.UserId,
+				UserName:  segment.UserName,
+				EmojiType: segment.EmojiType,
+				Width:     segment.Width,
+				Height:    segment.Height,
+				Language:  segment.Language,
+			}
+
+			richText.Content[rowIndex][colIndex] = element
+
 			switch segment.Tag {
 			case "text":
 				result.WriteString(segment.Text)
@@ -379,7 +449,7 @@ func (p *Processor) parsePost(content *string) (string, []Resource, error) {
 		result.WriteString("\n")
 	}
 
-	return result.String(), resources, nil
+	return result.String(), resources, richText, nil
 }
 
 // parseImage 解析图片消息
@@ -509,85 +579,63 @@ func (p *Processor) parseMergeForward(content *string) (string, error) {
 
 // downloadResource 下载资源到本地
 func (p *Processor) downloadResource(ctx context.Context, resource *Resource) error {
-	// 确定文件名
-	var fileName string
-	if resource.FileName != "" {
-		fileName = resource.FileName
-	} else {
-		switch resource.Type {
-		case "image":
-			if resource.ImageKey != "" {
-				fileName = fmt.Sprintf("%s.jpg", resource.ImageKey)
-			} else {
-				fileName = fmt.Sprintf("%s.jpg", resource.FileKey)
-			}
-		case "audio":
-			fileName = fmt.Sprintf("%s.aac", resource.FileKey)
-		case "media":
-			fileName = fmt.Sprintf("%s.mp4", resource.FileKey)
-		case "file":
-			fileName = resource.FileKey
-		default:
-			fileName = resource.FileKey
+	if resource.MessageID == "" {
+		return fmt.Errorf("no message id")
+	}
+
+	// 确定要下载的文件 key 和类型
+	var fileKey string
+	var resourceType string
+	switch resource.Type {
+	case "image":
+		if resource.ImageKey != "" {
+			fileKey = resource.ImageKey
+		} else {
+			fileKey = resource.FileKey
 		}
+		resourceType = "image"
+	default:
+		fileKey = resource.FileKey
+		resourceType = "file"
+	}
+
+	if fileKey == "" {
+		return fmt.Errorf("no file key")
+	}
+
+	// 使用 MessageResource.Get() 下载资源
+	req := larkim.NewGetMessageResourceReqBuilder().
+		MessageId(resource.MessageID).
+		FileKey(fileKey).
+		Type(resourceType).
+		Build()
+
+	resp, err := p.client.Im.V1.MessageResource.Get(ctx, req)
+	if err != nil {
+		return err
 	}
 
 	// 构建本地路径
-	localPath := filepath.Join(p.tempDir, fileName)
+	localPath := filepath.Join(p.tempDir, resp.FileName)
 
-	// 下载文件
-	if resource.Type == "image" {
-		var imageKey string
-		if resource.ImageKey != "" {
-			imageKey = resource.ImageKey
-		} else {
-			imageKey = resource.FileKey
-		}
+	if !resp.Success() {
+		return fmt.Errorf("failed to get message resource: code=%d, msg=%s", resp.Code, resp.Msg)
+	}
 
-		if imageKey == "" {
-			return fmt.Errorf("no image key")
-		}
-
-		req := larkim.NewGetImageReqBuilder().ImageKey(imageKey).Build()
-		resp, err := p.client.Im.Image.Get(ctx, req)
-		if err != nil {
-			return err
-		}
-
-		if resp.Code != 0 {
-			return fmt.Errorf("failed to get image resource: code=%d, msg=%s", resp.Code, resp.Msg)
-		}
-
-		// 使用 SDK 提供的方法保存文件
-		if err := resp.WriteFile(localPath); err != nil {
-			return err
-		}
-	} else {
-		if resource.FileKey == "" {
-			return fmt.Errorf("no file key")
-		}
-
-		req := larkim.NewGetFileReqBuilder().FileKey(resource.FileKey).Build()
-		resp, err := p.client.Im.File.Get(ctx, req)
-		if err != nil {
-			return err
-		}
-
-		if !resp.Success() {
-			return fmt.Errorf("failed to get file resource: %s", resp.Msg)
-		}
-
-		// 使用 SDK 提供的方法保存文件
-		if err := resp.WriteFile(localPath); err != nil {
-			return err
-		}
+	// 使用 SDK 提供的方法保存文件
+	if err := resp.WriteFile(localPath); err != nil {
+		return err
 	}
 
 	// 更新资源信息
 	resource.LocalPath = localPath
 	resource.Downloaded = true
 
-	p.logger.Info("Resource downloaded", zap.String("type", resource.Type), zap.String("path", localPath))
+	p.logger.Info("Resource downloaded",
+		zap.String("type", resource.Type),
+		zap.String("message_id", resource.MessageID),
+		zap.String("file_key", fileKey),
+		zap.String("path", localPath))
 	return nil
 }
 
