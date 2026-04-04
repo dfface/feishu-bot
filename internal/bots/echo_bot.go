@@ -16,71 +16,61 @@ import (
 // EchoBot 回声机器人 - 收到什么消息就回复什么消息加上"已收到"
 type EchoBot struct {
 	*bot.BaseBot
-	msgProcessor message.MessageReceiver
-	msgSender    message.MessageSender
-	fileUploader message.FileUploader
-	cfg          *config.Config
-	logger       *zap.Logger
+	cfg *config.Config
 }
 
 // NewEchoBot 创建回声机器人
+//
+// 参数:
+//
+//	name - 机器人名称
+//	client - 飞书 API 客户端
+//	cfg - 应用配置
+//	logger - 日志记录器
+//
+// 返回:
+//
+//	*EchoBot - 初始化好的回声机器人实例
 func NewEchoBot(name string, client *lark.Client, cfg *config.Config, logger *zap.Logger) *EchoBot {
-	baseBot := bot.NewBaseBot(name, client, cfg.Feishu.VerificationToken, cfg.Feishu.EncryptKey)
-
-	bot := &EchoBot{
-		BaseBot:      baseBot,
-		msgProcessor: message.NewProcessor(client, logger),
-		msgSender:    message.NewMessageSender(client, logger),
-		fileUploader: message.NewFileUploader(client, logger),
-		cfg:          cfg,
-		logger:       logger,
+	b := &EchoBot{
+		BaseBot: bot.NewBaseBot(name, client, logger),
+		cfg:     cfg,
 	}
 
 	// 设置事件处理器
-	bot.GetDispatcher().OnP2MessageReceiveV1(func(ctx context.Context, event *larkim.P2MessageReceiveV1) error {
-		return bot.HandleMessage(ctx, event)
-	})
+	b.OnMessage(b.HandleMessage)
+	b.OnReactionCreated(b.HandleReactionCreated)
+	b.OnReactionDeleted(b.HandleReactionDeleted)
 
-	// 设置表情反应事件处理器
-	bot.GetDispatcher().OnP2MessageReactionCreatedV1(func(ctx context.Context, event *larkim.P2MessageReactionCreatedV1) error {
-		return bot.HandleReactionCreated(ctx, event)
-	})
-
-	bot.GetDispatcher().OnP2MessageReactionDeletedV1(func(ctx context.Context, event *larkim.P2MessageReactionDeletedV1) error {
-		return bot.HandleReactionDeleted(ctx, event)
-	})
-
-	return bot
+	return b
 }
 
 // HandleMessage 处理消息事件
-func (b *EchoBot) HandleMessage(ctx context.Context, event interface{}) error {
-	imEvent := event.(*larkim.P2MessageReceiveV1)
-	msg := imEvent.Event.Message
-	sender := imEvent.Event.Sender
+func (b *EchoBot) HandleMessage(ctx context.Context, event *larkim.P2MessageReceiveV1) error {
+	msg := event.Event.Message
+	sender := event.Event.Sender
 
-	b.logger.Info("Processing message",
+	b.Logger.Info("Processing message",
 		zap.String("message_id", *msg.MessageId),
 		zap.String("sender_id", *sender.SenderId.OpenId),
 		zap.String("chat_type", *msg.ChatType),
 		zap.String("message_type", *msg.MessageType),
-		zap.Any("full_message", msg),
 	)
 
 	// 使用消息处理器解析消息
-	msgContent, err := b.msgProcessor.Process(ctx, msg)
+	msgContent, err := b.MsgProcessor.Process(ctx, msg)
 	if err != nil {
-		b.logger.Error("Failed to process message", zap.Error(err))
-		return b.replyText(ctx, *msg.MessageId, fmt.Sprintf("消息处理失败: %v", err))
+		b.Logger.Error("Failed to process message", zap.Error(err))
+		return b.ReplyText(ctx, *msg.MessageId, fmt.Sprintf("消息处理失败: %v", err))
 	}
 
 	// 记录资源信息
 	if len(msgContent.Resources) > 0 {
-		b.logger.Info("Message contains resources",
+		b.Logger.Info("Message contains resources",
 			zap.Int("resource_count", len(msgContent.Resources)),
 		)
 		for i, resource := range msgContent.Resources {
-			b.logger.Info("Resource info",
+			b.Logger.Info("Resource info",
 				zap.Int("index", i),
 				zap.String("type", string(resource.Type)),
 				zap.String("file_key", resource.FileKey),
@@ -99,15 +89,8 @@ func (b *EchoBot) HandleMessage(ctx context.Context, event interface{}) error {
 	default:
 		// 其他消息类型，使用文本回复
 		replyContent := fmt.Sprintf("%s\n已收到", msgContent.Text)
-		return b.replyText(ctx, *msg.MessageId, replyContent)
+		return b.ReplyText(ctx, *msg.MessageId, replyContent)
 	}
-}
-
-// HandleCardAction 处理卡片交互事件
-func (b *EchoBot) HandleCardAction(ctx context.Context, event interface{}) error {
-	// 暂不处理卡片交互
-	b.logger.Info("Received card action", zap.Any("event", event))
-	return nil
 }
 
 // replyRichText 回复富文本消息
@@ -115,7 +98,7 @@ func (b *EchoBot) replyRichText(ctx context.Context, messageID string, msgConten
 	if msgContent.RichText == nil {
 		// 如果没有解析后的富文本，回退到文本回复
 		replyContent := fmt.Sprintf("%s\n已收到", msgContent.Text)
-		return b.replyText(ctx, messageID, replyContent)
+		return b.ReplyText(ctx, messageID, replyContent)
 	}
 
 	// 创建旧 image_key 到新 image_key 的映射
@@ -123,15 +106,21 @@ func (b *EchoBot) replyRichText(ctx context.Context, messageID string, msgConten
 
 	// 重新上传所有图片资源
 	for _, resource := range msgContent.Resources {
-		if resource.Type == "image" && resource.Downloaded && resource.LocalPath != "" {
-			b.logger.Info("Re-uploading image for rich text", zap.String("file_key", resource.FileKey), zap.String("local_path", resource.LocalPath))
-			newImageKey, err := b.fileUploader.UploadImage(ctx, resource.LocalPath, message.ImageTypeMessage)
+		if resource.Type == message.ResourceTypeImage && resource.Downloaded && resource.LocalPath != "" {
+			b.Logger.Info("Re-uploading image for rich text",
+				zap.String("file_key", resource.FileKey),
+				zap.String("local_path", resource.LocalPath))
+			newImageKey, err := b.FileUploader.UploadImage(ctx, resource.LocalPath, message.ImageTypeMessage)
 			if err != nil {
-				b.logger.Error("Failed to re-upload image", zap.String("file_key", resource.FileKey), zap.Error(err))
+				b.Logger.Error("Failed to re-upload image",
+					zap.String("file_key", resource.FileKey),
+					zap.Error(err))
 				continue
 			}
 			imageKeyMap[resource.FileKey] = newImageKey
-			b.logger.Info("Image re-uploaded successfully", zap.String("old_key", resource.FileKey), zap.String("new_key", newImageKey))
+			b.Logger.Info("Image re-uploaded successfully",
+				zap.String("old_key", resource.FileKey),
+				zap.String("new_key", newImageKey))
 		}
 	}
 
@@ -147,31 +136,34 @@ func (b *EchoBot) replyRichText(ctx context.Context, messageID string, msgConten
 	for _, line := range msgContent.RichText.Content {
 		for _, elem := range line {
 			switch elem.Tag {
-			case "text":
+			case string(message.RichTextTagText):
 				builder.AddTextWithStyle(elem.Text, elem.Style...)
-			case "a":
+			case string(message.RichTextTagA):
 				builder.AddLinkWithStyle(elem.Text, elem.Href, elem.Style...)
-			case "at":
+			case string(message.RichTextTagAt):
 				builder.AddAtWithStyle(elem.UserId, elem.UserName, elem.Style...)
-			case "img":
+			case string(message.RichTextTagImg):
 				// 先尝试用映射的 key
 				if newImageKey, exists := imageKeyMap[elem.ImageKey]; exists {
-					b.logger.Info("Using mapped image key", zap.String("old_key", elem.ImageKey), zap.String("new_key", newImageKey))
+					b.Logger.Info("Using mapped image key",
+						zap.String("old_key", elem.ImageKey),
+						zap.String("new_key", newImageKey))
 					builder.AddImage(newImageKey)
 				} else {
 					// 如果没有映射，直接使用原 image_key
-					b.logger.Info("Using original image key directly", zap.String("image_key", elem.ImageKey))
+					b.Logger.Info("Using original image key directly",
+						zap.String("image_key", elem.ImageKey))
 					builder.AddImage(elem.ImageKey)
 				}
-			case "media":
+			case string(message.RichTextTagMedia):
 				builder.AddMedia(elem.FileKey, elem.ImageKey)
-			case "emotion":
+			case string(message.RichTextTagEmotion):
 				builder.AddEmotion(message.EmojiType(elem.EmojiType))
-			case "hr":
+			case string(message.RichTextTagHr):
 				builder.AddHr()
-			case "code_block":
+			case string(message.RichTextTagCodeBlock):
 				builder.AddCodeBlock(elem.Text, elem.Language)
-			case "md":
+			case string(message.RichTextTagMd):
 				builder.AddMd(elem.Text)
 			}
 		}
@@ -183,14 +175,7 @@ func (b *EchoBot) replyRichText(ctx context.Context, messageID string, msgConten
 	builder.AddText("\n已收到")
 
 	// 回复富文本消息
-	_, err := b.msgSender.ReplyMessage(ctx, messageID, builder)
-	if err != nil {
-		b.logger.Error("Failed to reply rich text message", zap.Error(err))
-		return err
-	}
-
-	b.logger.Info("Rich text message replied successfully", zap.String("message_id", messageID))
-	return nil
+	return b.ReplyRichText(ctx, messageID, builder)
 }
 
 // HandleReactionCreated 处理表情反应创建事件
@@ -207,25 +192,14 @@ func (b *EchoBot) HandleReactionCreated(ctx context.Context, event *larkim.P2Mes
 		emojiType = *reaction.ReactionType.EmojiType
 	}
 
-	b.logger.Info("Received reaction created event",
+	b.Logger.Info("Received reaction created event",
 		zap.String("message_id", *reaction.MessageId),
 		zap.String("emoji_type", emojiType),
 		zap.String("user_id", userID),
 	)
 
 	// 同样的表情反应回去
-	_, err := b.msgSender.AddReaction(ctx, *reaction.MessageId, message.EmojiType(emojiType))
-	if err != nil {
-		b.logger.Error("Failed to add reaction", zap.Error(err))
-		return err
-	}
-
-	b.logger.Info("Reaction added successfully",
-		zap.String("message_id", *reaction.MessageId),
-		zap.String("emoji_type", emojiType),
-	)
-
-	return nil
+	return b.AddReaction(ctx, *reaction.MessageId, message.EmojiType(emojiType))
 }
 
 // HandleReactionDeleted 处理表情反应删除事件
@@ -242,7 +216,7 @@ func (b *EchoBot) HandleReactionDeleted(ctx context.Context, event *larkim.P2Mes
 		emojiType = *reaction.ReactionType.EmojiType
 	}
 
-	b.logger.Info("Received reaction deleted event",
+	b.Logger.Info("Received reaction deleted event",
 		zap.String("message_id", *reaction.MessageId),
 		zap.String("emoji_type", emojiType),
 		zap.String("user_id", userID),
@@ -250,17 +224,5 @@ func (b *EchoBot) HandleReactionDeleted(ctx context.Context, event *larkim.P2Mes
 
 	// 这里可以添加删除表情反应的逻辑，但通常不需要
 
-	return nil
-}
-
-// replyText 回复文本消息
-func (b *EchoBot) replyText(ctx context.Context, messageID, text string) error {
-	builder := message.NewTextMessageBuilder(text)
-	_, err := b.msgSender.ReplyMessage(ctx, messageID, builder)
-	if err != nil {
-		b.logger.Error("Failed to reply message", zap.Error(err))
-		return err
-	}
-	b.logger.Info("Message replied successfully", zap.String("message_id", messageID), zap.String("text", text))
 	return nil
 }
