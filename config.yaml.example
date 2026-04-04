@@ -1,0 +1,36 @@
+# Feishu Bot Configuration
+
+# 飞书应用配置
+feishu:
+  # 应用 ID (必填)
+  app_id: "cli_xxxxxxxxxx"
+  # 应用密钥 (必填)
+  app_secret: "xxxxxxxxxx"
+  # 验证令牌 (可选，用于 Webhook 验证)
+  verification_token: ""
+  # 加密密钥 (可选，用于加密回调数据)
+  encrypt_key: ""
+  # 是否使用 WebSocket 长连接模式 (默认: true)
+  use_websocket: true
+
+# Memos 配置
+memos:
+  # Memos 服务地址 (必填)，例如: http://localhost:5230
+  base_url: "http://localhost:5230"
+  # Memos 访问令牌 (必填)
+  access_token: "your_memos_access_token"
+  # 默认可见性 (可选，默认: PRIVATE)
+  # 可选值: PRIVATE, PROTECTED, PUBLIC
+  default_visibility: "PRIVATE"
+
+# 服务器配置
+server:
+  # 监听端口 (默认: 8080)
+  port: 8080
+
+# 日志配置
+log:
+  # 日志级别 (可选: debug, info, warn, error, 默认: info)
+  level: "info"
+  # 日志格式 (可选: json, console, 默认: json)
+  format: "json"
