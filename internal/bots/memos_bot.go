@@ -12,6 +12,7 @@ import (
 
 	"github.com/dfface/feishu-bot/pkg/bot"
 	"github.com/dfface/feishu-bot/pkg/config"
+	"github.com/dfface/feishu-bot/pkg/converter"
 	"github.com/dfface/feishu-bot/third_party/memos"
 )
 
@@ -70,38 +71,33 @@ func (b *MemosBot) HandleMessage(ctx context.Context, event *larkim.P2MessageRec
 		return b.ReplyText(ctx, *sender.SenderId.OpenId, fmt.Sprintf("消息处理失败: %v", err))
 	}
 
-	// 处理文本内容
-	content := msgContent.Text
-
-	// 第一步：创建 Memo
-	visibility := memos.Visibility(b.cfg.Memos.DefaultVisibility)
-	memo, err := b.memosClient.CreateMemo(ctx, content, visibility)
+	// 使用转换器将 MessageContent 转换为 Memos 格式
+	content, filePaths, err := converter.NewMemosConverter().ConvertMessageContent(msgContent)
 	if err != nil {
-		b.Logger.Error("Failed to create memo", zap.Error(err))
+		b.Logger.Error("Failed to convert message content", zap.Error(err))
+		return b.ReplyText(ctx, *sender.SenderId.OpenId, fmt.Sprintf("消息转换失败: %v", err))
+	}
+
+	b.Logger.Info("Converted message content",
+		zap.String("content", content),
+		zap.Int("resource_count", len(filePaths)))
+
+	// 创建带资源的 Memo
+	visibility := memos.Visibility(b.cfg.Memos.DefaultVisibility)
+	memo, attachments, err := b.memosClient.CreateMemoWithResources(ctx, content, visibility, filePaths)
+	if err != nil {
+		b.Logger.Error("Failed to create memo with resources", zap.Error(err))
 		return b.ReplyText(ctx, *sender.SenderId.OpenId, fmt.Sprintf("保存失败: %v", err))
 	}
 
-	// 第二步：处理已下载的资源，上传到 Memos 并关联到 Memo
-	for _, res := range msgContent.Resources {
-		if !res.Downloaded {
-			b.Logger.Warn("Resource not downloaded", zap.String("type", string(res.Type)))
-			continue
-		}
-
-		// 上传到 Memos
-		attachment, err := b.memosClient.UploadResource(ctx, res.LocalPath, memo.Name)
-		if err != nil {
-			b.Logger.Error("Failed to upload resource to memos", zap.Error(err), zap.String("path", res.LocalPath))
-			continue
-		}
-		b.Logger.Info("Resource uploaded to memos",
-			zap.String("attachment_name", attachment.Name),
-			zap.String("filename", attachment.Filename),
-		)
-
-		// 清理本地文件
-		_ = os.Remove(res.LocalPath)
+	// 清理本地文件
+	for _, path := range filePaths {
+		_ = os.Remove(path)
 	}
+
+	b.Logger.Info("Memo created successfully",
+		zap.String("memo_name", memo.Name),
+		zap.Int("attachment_count", len(attachments)))
 
 	// 回复成功
 	return b.ReplyText(ctx, *sender.SenderId.OpenId, fmt.Sprintf("已保存到 Memos"))
