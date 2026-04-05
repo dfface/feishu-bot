@@ -41,4 +41,3 @@ build/
 .DS_Store
 config_test.yaml
 test_*.go
-feishu-bot
