@@ -150,7 +150,7 @@ func (f *BotFactory) createBot(botConfig config.BotConfig) (bot.Bot, error) {
 		// 设置默认功能
 		if featureMapping.Default {
 			newBot.SetDefaultFeature(feature.ID())
-		} else if len(f.config.Features) == 1 {
+		} else if len(botConfig.Features) == 1 {
 			newBot.SetDefaultFeature(feature.ID())
 		}
 	}
