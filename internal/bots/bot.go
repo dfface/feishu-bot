@@ -11,6 +11,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	lark "github.com/larksuite/oapi-sdk-go/v3"
 	larkim "github.com/larksuite/oapi-sdk-go/v3/service/im/v1"
@@ -29,10 +30,17 @@ import (
 // 并添加了功能管理和消息路由的能力。
 // Bot 支持注册多个功能，并根据消息前缀或默认设置路由到相应的功能。
 type Bot struct {
-	*bot.BaseBot                                 // 基础机器人实例，提供消息处理和发送能力
-	features         map[string]features.Feature // 功能映射表，键为功能 ID，值为功能实例
-	defaultFeatureID string                      // 默认功能 ID，当没有匹配的功能时使用
+	*bot.BaseBot                                  // 基础机器人实例，提供消息处理和发送能力
+	features          map[string]features.Feature // 功能映射表，键为功能 ID，值为功能实例
+	defaultFeatureID  string                      // 默认功能 ID，当没有匹配的功能时使用
+	processedMessages map[string]time.Time        // 已处理的消息 ID 集合，值为处理时间
 }
+
+const (
+	// DefaultRetentionDuration 默认保留时间，3秒内消息
+	DefaultIdempotencyInterval = 60 * time.Second
+	DefaultRetentionInterval   = 120 * time.Second
+)
 
 // NewBot 创建机器人
 //
@@ -48,8 +56,9 @@ type Bot struct {
 // - *Bot：创建的机器人实例
 func NewBot(id, name, description string, client *lark.Client) *Bot {
 	return &Bot{
-		BaseBot:  bot.NewBaseBot(id, name, description, client),
-		features: make(map[string]features.Feature),
+		BaseBot:           bot.NewBaseBot(id, name, description, client),
+		features:          make(map[string]features.Feature),
+		processedMessages: make(map[string]time.Time),
 	}
 }
 
@@ -75,14 +84,29 @@ func (b *Bot) SetDefaultFeature(featureID string) {
 	b.defaultFeatureID = featureID
 }
 
+// cleanupProcessedMessages 清理过期的消息 ID
+// 只保留最近 3 秒内的消息 ID
+func (b *Bot) cleanupProcessedMessages() {
+	retentionDuration := DefaultRetentionInterval // 保留最近 3 秒的消息 ID
+	cutoffTime := time.Now().Add(-retentionDuration)
+
+	for msgID, processTime := range b.processedMessages {
+		if processTime.Before(cutoffTime) {
+			delete(b.processedMessages, msgID)
+		}
+	}
+}
+
 // HandleMessage 处理消息
 //
 // 此方法是消息处理的核心，负责接收消息并路由到相应的功能。
 // 主要完成以下工作：
 // 1. 解析消息内容
-// 2. 根据消息前缀匹配功能
-// 3. 如果没有匹配的功能，使用默认功能
-// 4. 调用功能的处理方法
+// 2. 定期清理过期的消息 ID
+// 3. 幂等处理：检查消息是否已经被处理过（3秒内的相同消息不处理）
+// 4. 根据消息前缀匹配功能，如匹配到则清除前缀
+// 5. 如果没有匹配的功能，使用默认功能
+// 6. 调用功能的处理方法
 //
 // 参数：
 // - ctx：上下文，用于控制请求的生命周期
@@ -100,16 +124,43 @@ func (b *Bot) HandleMessage(ctx context.Context, event *larkim.P2MessageReceiveV
 		return b.SendText(ctx, *sender.SenderId.OpenId, "消息处理失败")
 	}
 
-	// 查找匹配的功能
-	var matchedFeature features.Feature
-	text := msgContent.Text
+	// 定期清理过期的消息 ID
+	if len(b.processedMessages)%10 == 0 { // 每处理 10 条消息清理一次
+		b.cleanupProcessedMessages()
+	}
 
-	// 首先尝试根据前缀匹配功能
-	for _, feature := range b.features {
-		if strings.HasPrefix(text, feature.MatchPrefix()) {
-			matchedFeature = feature
-			break
+	// 幂等处理：检查消息是否已经被处理过（3秒内的相同消息不处理）
+	if processTime, exists := b.processedMessages[msgContent.ID]; exists {
+		if time.Since(processTime) < DefaultIdempotencyInterval {
+			logger.Info("Message already processed within 3 seconds", zap.String("message_id", msgContent.ID))
+			return nil
 		}
+	}
+
+	// 标记消息为已处理
+	b.processedMessages[msgContent.ID] = time.Now()
+
+	var matchedFeature features.Feature
+
+	// 查找匹配的功能
+	if msgContent.Type == message.MessageTypeText {
+		text := msgContent.Text
+		matchedFeature, text = b.matchFeature(text)
+		msgContent.Text = text
+	} else if msgContent.Type == message.MessageTypePost {
+		// 富文本消息的规则是：第一行得有功能前缀
+		if msgContent.RichText == nil || len(msgContent.RichText.Content) == 0 || len(msgContent.RichText.Content[0]) == 0 {
+			logger.Error("Rich text message err", zap.Any("rich_text", msgContent))
+			return b.SendText(ctx, *sender.SenderId.OpenId, "富文本消息解析失败")
+		}
+		text := msgContent.RichText.Content[0][0].Text
+		matchedFeature, text = b.matchFeature(text)
+		msgContent.RichText.Content[0][0].Text = text
+	} else {
+		// 其他消息类型都有摘要，按文本消息的处理方式来，比如文件有文件名的；但是图片被飞书自己重命名了
+		text := msgContent.Text
+		matchedFeature, text = b.matchFeature(text)
+		msgContent.Text = text
 	}
 
 	// 如果没有匹配的功能，使用默认功能
@@ -153,8 +204,7 @@ func (b *Bot) HandleP2PChatEntered(ctx context.Context, event *larkim.P2ChatAcce
 
 	// 添加功能列表
 	for _, feature := range b.features {
-		builder.AddMd(fmt.Sprintf("- **%s**(%s)", feature.Name(), feature.MatchPrefix()))
-		builder.AddText("  " + feature.Description()).NewParagraph()
+		builder.AddMd(fmt.Sprintf("- **%s**(%s): %s", feature.Name(), feature.MatchPrefix(), feature.Description()))
 	}
 
 	// 添加使用方法
@@ -166,4 +216,19 @@ func (b *Bot) HandleP2PChatEntered(ctx context.Context, event *larkim.P2ChatAcce
 
 	// 发送欢迎消息
 	return b.SendRichText(ctx, openID, builder)
+}
+
+// matchFeature 匹配功能并更新消息内容
+//
+// 此方法根据文本内容匹配功能，并更新消息内容（移除前缀）。
+func (b *Bot) matchFeature(text string) (features.Feature, string) {
+	for _, feature := range b.features {
+		if strings.HasPrefix(text, feature.MatchPrefix()) {
+			// 移除前缀
+			text = strings.TrimPrefix(text, feature.MatchPrefix())
+			text = strings.TrimSpace(text)
+			return feature, text
+		}
+	}
+	return nil, text
 }

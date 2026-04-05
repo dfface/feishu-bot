@@ -106,6 +106,11 @@ func (p *Processor) Process(ctx context.Context, event *larkim.P2MessageReceiveV
 		if err := p.downloadResource(ctx, &resource); err != nil {
 			logger.Warn("Failed to download image", zap.Error(err))
 		}
+		if resource.FileName != "" {
+			content.Text = resource.FileName
+		} else {
+			content.Text = "🖼️ 图片: " + resource.FileKey
+		}
 		content.Resources = append(content.Resources, resource)
 
 	case MessageTypeFile:
@@ -117,6 +122,11 @@ func (p *Processor) Process(ctx context.Context, event *larkim.P2MessageReceiveV
 		// 下载文件
 		if err := p.downloadResource(ctx, &resource); err != nil {
 			logger.Warn("Failed to download file", zap.Error(err))
+		}
+		if resource.FileName != "" {
+			content.Text = resource.FileName
+		} else {
+			content.Text = "📄 文件: " + resource.FileKey
 		}
 		content.Resources = append(content.Resources, resource)
 
@@ -130,6 +140,11 @@ func (p *Processor) Process(ctx context.Context, event *larkim.P2MessageReceiveV
 		if err := p.downloadResource(ctx, &resource); err != nil {
 			logger.Warn("Failed to download audio", zap.Error(err))
 		}
+		if resource.FileName != "" {
+			content.Text = resource.FileName
+		} else {
+			content.Text = "🎵 音频: " + resource.FileKey
+		}
 		content.Resources = append(content.Resources, resource)
 
 	case MessageTypeMedia:
@@ -141,6 +156,11 @@ func (p *Processor) Process(ctx context.Context, event *larkim.P2MessageReceiveV
 		// 下载视频
 		if err := p.downloadResource(ctx, &resource); err != nil {
 			logger.Warn("Failed to download media", zap.Error(err))
+		}
+		if resource.FileName != "" {
+			content.Text = resource.FileName
+		} else {
+			content.Text = "📹 视频: " + resource.FileKey
 		}
 		content.Resources = append(content.Resources, resource)
 

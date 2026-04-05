@@ -8,7 +8,6 @@ package features
 import (
 	"context"
 	"os"
-	"strings"
 
 	"go.uber.org/zap"
 
@@ -105,8 +104,12 @@ func (f *MemosFeature) MatchPrefix() string {
 // - error：初始化过程中的错误，成功则返回 nil
 func (f *MemosFeature) Initialize(featureConfig *config.FeatureConfig) error {
 	// 覆盖写死的 Name、Description
-	f.name = featureConfig.Name
-	f.description = featureConfig.Description
+	if featureConfig.Name != "" {
+		f.name = featureConfig.Name
+	}
+	if featureConfig.Description != "" {
+		f.description = featureConfig.Description
+	}
 
 	if prefix, ok := featureConfig.Config["prefix"].(string); ok {
 		f.prefix = prefix
@@ -157,12 +160,11 @@ func (f *MemosFeature) SetMemosClient(client *memos.Client) {
 //
 // 此方法是功能的核心，负责处理接收到的消息。
 // 主要完成以下工作：
-// 1. 移除命令前缀
-// 2. 转换消息格式（支持文本、富文本、图片、文件等）
-// 3. 上传附件到 Memos
-// 4. 创建 Memo
-// 5. 清理临时文件
-// 6. 回复用户
+// 1. 转换消息格式（支持文本、富文本、图片、文件等）
+// 2. 上传附件到 Memos
+// 3. 创建 Memo
+// 4. 清理临时文件
+// 5. 回复用户
 //
 // 参数：
 // - ctx：上下文，用于控制请求的生命周期
@@ -176,19 +178,11 @@ func (f *MemosFeature) HandleMessage(ctx context.Context, msgContent *message.Me
 		zap.String("sender_id", msgContent.SenderID),
 	)
 
-	// 处理命令前缀
-	text := msgContent.Text
-	if strings.HasPrefix(text, f.prefix) {
-		text = strings.TrimPrefix(text, f.prefix)
-		text = strings.TrimSpace(text)
-		msgContent.Text = text
-	}
-
 	// 使用转换器转换消息
 	content, filePaths, err := converter.NewMemosConverter().ConvertMessageContent(msgContent)
 	if err != nil {
 		logger.Error("Failed to convert message", zap.Error(err))
-		return f.baseBot.SendText(ctx, msgContent.SenderID, "消息转换失败")
+		return f.baseBot.ReplyText(ctx, msgContent.ID, "消息转换失败")
 	}
 
 	// 创建 Memo
@@ -196,7 +190,7 @@ func (f *MemosFeature) HandleMessage(ctx context.Context, msgContent *message.Me
 	memo, attachments, err := f.memosClient.CreateMemoWithResources(ctx, content, visibility, filePaths)
 	if err != nil {
 		logger.Error("Failed to create memo", zap.Error(err))
-		return f.baseBot.SendText(ctx, msgContent.SenderID, "保存失败")
+		return f.baseBot.ReplyText(ctx, msgContent.ID, "保存失败")
 	}
 
 	// 清理本地文件
@@ -210,5 +204,5 @@ func (f *MemosFeature) HandleMessage(ctx context.Context, msgContent *message.Me
 	)
 
 	// 回复成功
-	return f.baseBot.SendText(ctx, msgContent.SenderID, "已保存到 Memos")
+	return f.baseBot.ReplyText(ctx, msgContent.ID, "已保存到 Memos")
 }

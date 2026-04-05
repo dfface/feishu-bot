@@ -7,7 +7,6 @@ package features
 
 import (
 	"context"
-	"strings"
 
 	"go.uber.org/zap"
 
@@ -96,8 +95,12 @@ func (f *EchoFeature) MatchPrefix() string {
 // - error：初始化过程中的错误，成功则返回 nil
 func (f *EchoFeature) Initialize(featureConfig *config.FeatureConfig) error {
 	// 覆盖写死的 Name、Description
-	f.name = featureConfig.Name
-	f.description = featureConfig.Description
+	if featureConfig.Name != "" {
+		f.name = featureConfig.Name
+	}
+	if featureConfig.Description != "" {
+		f.description = featureConfig.Description
+	}
 
 	if prefix, ok := featureConfig.Config["prefix"].(string); ok {
 		f.prefix = prefix
@@ -120,8 +123,7 @@ func (f *EchoFeature) SetBaseBot(baseBot *bot.BaseBot) {
 //
 // 此方法是功能的核心，负责处理接收到的消息。
 // 主要完成以下工作：
-// 1. 移除命令前缀
-// 2. 根据消息类型回复（文本消息或富文本消息）
+// 1. 根据消息类型回复（文本消息或富文本消息）
 //
 // 参数：
 // - ctx：上下文，用于控制请求的生命周期
@@ -135,13 +137,6 @@ func (f *EchoFeature) HandleMessage(ctx context.Context, msgContent *message.Mes
 		zap.String("sender_id", msgContent.SenderID),
 	)
 
-	// 处理命令前缀
-	text := msgContent.Text
-	if strings.HasPrefix(text, f.prefix) {
-		text = strings.TrimPrefix(text, f.prefix)
-		text = strings.TrimSpace(text)
-	}
-
 	// 根据消息类型回复
 	switch msgContent.Type {
 	case message.MessageTypePost:
@@ -149,7 +144,7 @@ func (f *EchoFeature) HandleMessage(ctx context.Context, msgContent *message.Mes
 		return f.replyRichText(ctx, msgContent.ID, msgContent)
 	default:
 		// 其他消息类型
-		replyContent := text + "\n已收到"
+		replyContent := msgContent.Text + "\n已收到"
 		return f.baseBot.SendText(ctx, msgContent.SenderID, replyContent)
 	}
 }
