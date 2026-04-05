@@ -159,6 +159,8 @@ func (f *BotFactory) createBot(botConfig config.BotConfig) (bot.Bot, error) {
 	newBot.OnMessage(newBot.HandleMessage)
 	if botConfig.WelcomeMessageEnabled {
 		newBot.OnBotP2PChatEntered(newBot.HandleP2PChatEntered)
+	} else {
+		newBot.OnBotP2PChatEntered(newBot.HandleP2PChatEnteredReturnEmpty)
 	}
 
 	return newBot, nil

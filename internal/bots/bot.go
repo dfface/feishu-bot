@@ -232,3 +232,7 @@ func (b *Bot) matchFeature(text string) (features.Feature, string) {
 	}
 	return nil, text
 }
+
+func (b *Bot) HandleP2PChatEnteredReturnEmpty(ctx context.Context, event *larkim.P2ChatAccessEventBotP2pChatEnteredV1) error {
+	return nil
+}
