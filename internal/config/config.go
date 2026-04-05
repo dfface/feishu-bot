@@ -8,7 +8,6 @@ import (
 
 // Config 应用配置
 type Config struct {
-	Server   ServerConfig    `mapstructure:"server"`
 	Log      LogConfig       `mapstructure:"log"`
 	Features []FeatureConfig `mapstructure:"features"`
 	Bots     []BotConfig     `mapstructure:"bots"`
@@ -26,12 +25,12 @@ type FeatureConfig struct {
 
 // BotConfig 机器人配置
 type BotConfig struct {
-	ID      string            `mapstructure:"id"`
-	Name    string            `mapstructure:"name"`
-	Enabled bool              `mapstructure:"enabled"`
-	Features []FeatureMapping `mapstructure:"features"`
-	Config  map[string]interface{} `mapstructure:"config"`
-	Feishu  FeishuConfig      `mapstructure:"feishu"` // 飞书配置
+	ID       string                 `mapstructure:"id"`
+	Name     string                 `mapstructure:"name"`
+	Enabled  bool                   `mapstructure:"enabled"`
+	Features []FeatureMapping       `mapstructure:"features"`
+	Config   map[string]interface{} `mapstructure:"config"`
+	Feishu   FeishuConfig           `mapstructure:"feishu"` // 飞书配置
 }
 
 // FeatureMapping 功能映射配置
@@ -58,23 +57,18 @@ func (c *Config) ValidateFeishuOnly() error {
 
 // FeishuConfig 飞书配置
 type FeishuConfig struct {
-	AppID              string `mapstructure:"app_id"`
-	AppSecret          string `mapstructure:"app_secret"`
-	VerificationToken  string `mapstructure:"verification_token"`
-	EncryptKey         string `mapstructure:"encrypt_key"`
-	UseWebSocket       bool   `mapstructure:"use_websocket"`
+	AppID             string `mapstructure:"app_id"`
+	AppSecret         string `mapstructure:"app_secret"`
+	VerificationToken string `mapstructure:"verification_token"`
+	EncryptKey        string `mapstructure:"encrypt_key"`
+	UseWebSocket      bool   `mapstructure:"use_websocket"`
 }
 
 // MemosConfig Memos 配置
 type MemosConfig struct {
-	BaseURL       string `mapstructure:"base_url"`
-	AccessToken   string `mapstructure:"access_token"`
+	BaseURL           string `mapstructure:"base_url"`
+	AccessToken       string `mapstructure:"access_token"`
 	DefaultVisibility string `mapstructure:"default_visibility"`
-}
-
-// ServerConfig 服务器配置
-type ServerConfig struct {
-	Port int `mapstructure:"port"`
 }
 
 // LogConfig 日志配置
@@ -127,12 +121,10 @@ func Load(configPath string) (*Config, error) {
 
 // setDefaults 设置默认值
 func setDefaults(v *viper.Viper) {
-	v.SetDefault("server.port", 8080)
 	v.SetDefault("log.level", "info")
 	v.SetDefault("log.format", "json")
 	v.SetDefault("feishu.use_websocket", true)
 	v.SetDefault("memos.default_visibility", "PRIVATE")
-	// 功能默认启用
 	v.SetDefault("features.*.enabled", true)
 }
 

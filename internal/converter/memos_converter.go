@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/dfface/feishu-bot/pkg/message"
+	"github.com/dfface/feishu-bot/internal/message"
 	"github.com/dfface/feishu-bot/third_party/memos"
 )
 

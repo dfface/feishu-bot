@@ -5,9 +5,9 @@ import (
 
 	"go.uber.org/zap"
 
+	"github.com/dfface/feishu-bot/internal/bot"
+	"github.com/dfface/feishu-bot/internal/config"
 	"github.com/dfface/feishu-bot/internal/features"
-	"github.com/dfface/feishu-bot/pkg/bot"
-	"github.com/dfface/feishu-bot/pkg/config"
 	lark "github.com/larksuite/oapi-sdk-go/v3"
 )
 

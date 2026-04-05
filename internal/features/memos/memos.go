@@ -8,9 +8,9 @@ import (
 	larkim "github.com/larksuite/oapi-sdk-go/v3/service/im/v1"
 	"go.uber.org/zap"
 
-	"github.com/dfface/feishu-bot/pkg/bot"
-	"github.com/dfface/feishu-bot/pkg/config"
-	"github.com/dfface/feishu-bot/pkg/converter"
+	"github.com/dfface/feishu-bot/internal/bot"
+	"github.com/dfface/feishu-bot/internal/config"
+	"github.com/dfface/feishu-bot/internal/converter"
 	memos "github.com/dfface/feishu-bot/third_party/memos"
 )
 

@@ -1,36 +1,43 @@
 # Feishu Bot Configuration
+# 飞书机器人配置文件
 
-# 飞书应用配置
-feishu:
-  # 应用 ID (必填)
-  app_id: "cli_xxxxxxxxxx"
-  # 应用密钥 (必填)
-  app_secret: "xxxxxxxxxx"
-  # 验证令牌 (可选，用于 Webhook 验证)
-  verification_token: ""
-  # 加密密钥 (可选，用于加密回调数据)
-  encrypt_key: ""
-  # 是否使用 WebSocket 长连接模式 (默认: true)
-  use_websocket: true
-
-# Memos 配置
-memos:
-  # Memos 服务地址 (必填)，例如: http://localhost:5230
-  base_url: "http://localhost:5230"
-  # Memos 访问令牌 (必填)
-  access_token: "your_memos_access_token"
-  # 默认可见性 (可选，默认: PRIVATE)
-  # 可选值: PRIVATE, PROTECTED, PUBLIC
-  default_visibility: "PRIVATE"
-
-# 服务器配置
-server:
-  # 监听端口 (默认: 8080)
-  port: 8080
-
-# 日志配置
+# 日志配置 (可选，有默认值)
 log:
-  # 日志级别 (可选: debug, info, warn, error, 默认: info)
-  level: "info"
-  # 日志格式 (可选: json, console, 默认: json)
-  format: "json"
+  level: "info"    # 日志级别: debug, info, warn, error (默认: info)
+  format: "json"   # 日志格式: json, console (默认: json)
+
+# 功能配置
+features:
+  - id: "echo"                    # 必填: 功能唯一标识
+    # name: "回声功能"            # 可选: 功能名称，不填使用默认值
+    # enabled: true               # 可选: 是否启用，默认 true
+    # description: "原样回复消息" # 可选: 功能描述，不填使用默认值
+    config:
+      prefix: "!echo"             # 可选: 命令前缀
+
+  - id: "memos"
+    config:
+      prefix: "!memos"
+      memos:
+        base_url: "http://localhost:5230"      # 必填: Memos 服务地址
+        access_token: "your_memos_access_token" # 必填: Memos 访问令牌
+        # default_visibility: "PRIVATE"        # 可选: 可见性 (PRIVATE/PROTECTED/PUBLIC)，默认 PRIVATE
+
+# 机器人配置
+bots:
+  - id: "main-bot"           # 可选: 机器人唯一标识
+    name: "多功能机器人"      # 可选: 机器人名称
+    # enabled: true           # 可选: 是否启用，默认 true
+    feishu:
+      app_id: "cli_xxxxxxxxxx"           # 必填: 飞书应用 ID
+      app_secret: "xxxxxxxxxx"           # 必填: 飞书应用密钥
+      # verification_token: ""           # 可选: Webhook 验证令牌
+      # encrypt_key: ""                  # 可选: 回调数据加密密钥
+      # use_websocket: true              # 可选: 是否使用 WebSocket，默认 true
+    features:
+      - feature_id: "echo"
+        default: true         # 可选: 是否为默认功能，默认 false
+      - feature_id: "memos"
+        # default: false
+    # config:                 # 可选: 机器人自定义配置
+    #   welcome_message: "欢迎使用多功能机器人！"

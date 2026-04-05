@@ -9,7 +9,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/dfface/feishu-bot/internal/features"
-	"github.com/dfface/feishu-bot/pkg/bot"
+	"github.com/dfface/feishu-bot/internal/bot"
 )
 
 // Bot 统一的机器人实现

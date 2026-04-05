@@ -7,7 +7,7 @@ import (
 
 	echoFeature "github.com/dfface/feishu-bot/internal/features/echo"
 	memosFeature "github.com/dfface/feishu-bot/internal/features/memos"
-	"github.com/dfface/feishu-bot/pkg/config"
+	"github.com/dfface/feishu-bot/internal/config"
 )
 
 // Feature 功能接口

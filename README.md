@@ -52,10 +52,7 @@ cp config.yaml.example config.yaml
 编辑 `config.yaml` 文件，填入你的配置信息：
 
 ```yaml
-# 全局配置
-server:
-  port: 8080
-
+# 日志配置
 log:
   level: "info"
   format: "json"
@@ -105,7 +102,7 @@ go run cmd/feishu-bot/main.go --config config.yaml
 
 配置文件采用 YAML 格式，主要包含以下部分：
 
-1. **全局配置**：服务器和日志设置
+1. **日志配置**：日志级别和格式设置
 2. **功能配置**：定义可用的功能模块
 3. **机器人配置**：定义机器人及其功能映射
 
@@ -216,18 +213,17 @@ feishu-bot/
 ├── cmd/                  # 主程序入口
 │   └── feishu-bot/
 │       └── main.go
-├── internal/             # 内部实现
+├── internal/             # 内部实现（不可被外部导入）
+│   ├── bot/              # 机器人基础框架
 │   ├── bots/             # 机器人实现
 │   │   ├── bot.go        # 统一的 Bot 实现
 │   │   └── bot_factory.go # 机器人工厂
-│   └── features/         # 功能模块
-│       ├── echo/         # 回声功能
-│       ├── memos/        # Memos 功能
-│       └── features.go   # 功能接口和注册中心
-├── pkg/                  # 公共包
-│   ├── bot/              # 机器人基础框架
 │   ├── config/           # 配置管理
 │   ├── converter/        # 消息转换器
+│   ├── features/         # 功能模块
+│   │   ├── echo/         # 回声功能
+│   │   ├── memos/        # Memos 功能
+│   │   └── features.go   # 功能接口和注册中心
 │   └── message/          # 消息处理核心
 ├── third_party/          # 第三方服务客户端
 │   └── memos/            # Memos 客户端
@@ -254,8 +250,8 @@ import (
     "context"
     larkim "github.com/larksuite/oapi-sdk-go/v3/service/im/v1"
     "go.uber.org/zap"
-    "github.com/dfface/feishu-bot/pkg/bot"
-    "github.com/dfface/feishu-bot/pkg/config"
+    "github.com/dfface/feishu-bot/internal/bot"
+    "github.com/dfface/feishu-bot/internal/config"
 )
 
 type HelloFeature struct {
@@ -341,45 +337,25 @@ bots:
 
 ### 使用 Docker
 
-**Dockerfile**：
-
-```dockerfile
-FROM golang:1.25-alpine AS builder
-
-WORKDIR /app
-COPY . .
-RUN go mod download
-RUN CGO_ENABLED=0 go build -o feishu-bot ./cmd/feishu-bot
-
-FROM alpine:latest
-COPY --from=builder /app/feishu-bot /usr/local/bin/
-ENTRYPOINT ["feishu-bot"]
-```
-
-**构建并运行**：
+**构建镜像**：
 
 ```bash
-docker build -t feishu-bot .
+docker build -t feishu-bot:latest .
+```
+
+**运行容器**：
+
+```bash
 docker run -d --name feishu-bot \
-  -v $(pwd)/config.yaml:/app/config.yaml \
-  -p 8080:8080 \
-  feishu-bot --config /app/config.yaml
+  -v $(pwd)/config.yaml:/app/config.yaml:ro \
+  --restart unless-stopped \
+  feishu-bot:latest
 ```
 
 ### 使用 Docker Compose
 
-**docker-compose.yml**：
-
-```yaml
-version: '3'
-services:
-  feishu-bot:
-    build: .
-    volumes:
-      - ./config.yaml:/app/config.yaml
-    ports:
-      - "8080:8080"
-    restart: unless-stopped
+```bash
+docker compose up -d
 ```
 
 ## ❓ 常见问题
