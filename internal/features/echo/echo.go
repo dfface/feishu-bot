@@ -14,6 +14,7 @@ import (
 
 	"github.com/dfface/feishu-bot/internal/bot"
 	"github.com/dfface/feishu-bot/internal/config"
+	"github.com/dfface/feishu-bot/internal/logger"
 	"github.com/dfface/feishu-bot/internal/message"
 )
 
@@ -30,7 +31,6 @@ type EchoFeature struct {
 	description string       // 功能描述
 	prefix      string       // 匹配前缀，用于识别命令
 	baseBot     *bot.BaseBot // 基础机器人实例，提供消息处理和发送能力
-	logger      *zap.Logger  // 日志记录器
 }
 
 // NewEchoFeature 创建回声功能
@@ -111,7 +111,6 @@ func (f *EchoFeature) Initialize(featureConfig *config.FeatureConfig) error {
 // - baseBot：基础机器人实例
 func (f *EchoFeature) SetBaseBot(baseBot *bot.BaseBot) {
 	f.baseBot = baseBot
-	f.logger = baseBot.Logger
 }
 
 // HandleMessage 处理消息
@@ -132,7 +131,7 @@ func (f *EchoFeature) HandleMessage(ctx context.Context, event *larkim.P2Message
 	msg := event.Event.Message
 	sender := event.Event.Sender
 
-	f.logger.Info("Processing echo message",
+	logger.Info("Processing echo message",
 		zap.String("message_id", *msg.MessageId),
 		zap.String("sender_id", *sender.SenderId.OpenId),
 	)
@@ -140,7 +139,7 @@ func (f *EchoFeature) HandleMessage(ctx context.Context, event *larkim.P2Message
 	// 处理消息
 	msgContent, err := f.baseBot.MsgProcessor.Process(ctx, msg)
 	if err != nil {
-		f.logger.Error("Failed to process message", zap.Error(err))
+		logger.Error("Failed to process message", zap.Error(err))
 		return f.baseBot.SendText(ctx, *sender.SenderId.OpenId, "消息处理失败")
 	}
 

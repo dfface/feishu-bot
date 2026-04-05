@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/dfface/feishu-bot/internal/logger"
 	"github.com/google/uuid"
 	lark "github.com/larksuite/oapi-sdk-go/v3"
 	larkim "github.com/larksuite/oapi-sdk-go/v3/service/im/v1"
@@ -14,7 +15,6 @@ import (
 // 实现了 MessageSender 接口，提供消息发送、回复和表情反应功能
 type DefaultMessageSender struct {
 	client *lark.Client
-	logger *zap.Logger
 }
 
 // NewMessageSender 创建消息发送器
@@ -22,15 +22,13 @@ type DefaultMessageSender struct {
 // 参数:
 //
 //	client - 飞书 API 客户端
-//	logger - 日志记录器
 //
 // 返回:
 //
 //	MessageSender - 初始化好的消息发送器实例
-func NewMessageSender(client *lark.Client, logger *zap.Logger) MessageSender {
+func NewMessageSender(client *lark.Client) MessageSender {
 	return &DefaultMessageSender{
 		client: client,
-		logger: logger,
 	}
 }
 
@@ -73,7 +71,7 @@ func (s *DefaultMessageSender) SendMessage(ctx context.Context, receiveIDType Re
 		return nil, fmt.Errorf("failed to send message: code=%d, msg=%s", resp.Code, resp.Msg)
 	}
 
-	s.logger.Info("Message sent successfully",
+	logger.Info("Message sent successfully",
 		zap.String("receive_id_type", string(receiveIDType)),
 		zap.String("receive_id", receiveID),
 		zap.String("message_type", builder.MessageType()),
@@ -118,7 +116,7 @@ func (s *DefaultMessageSender) ReplyMessage(ctx context.Context, messageID strin
 		return nil, fmt.Errorf("failed to reply message: code=%d, msg=%s", resp.Code, resp.Msg)
 	}
 
-	s.logger.Info("Message replied successfully",
+	logger.Info("Message replied successfully",
 		zap.String("message_id", messageID),
 		zap.String("message_type", builder.MessageType()),
 	)
@@ -157,7 +155,7 @@ func (s *DefaultMessageSender) AddReaction(ctx context.Context, messageID string
 		return nil, fmt.Errorf("failed to add reaction: code=%d, msg=%s", resp.Code, resp.Msg)
 	}
 
-	s.logger.Info("Reaction added successfully",
+	logger.Info("Reaction added successfully",
 		zap.String("message_id", messageID),
 		zap.String("emoji_type", string(emojiType)),
 	)

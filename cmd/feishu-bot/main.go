@@ -21,10 +21,10 @@ import (
 	"github.com/larksuite/oapi-sdk-go/v3/ws"
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
-	"go.uber.org/zap/zapcore"
 
 	"github.com/dfface/feishu-bot/internal/bots"
 	"github.com/dfface/feishu-bot/internal/config"
+	"github.com/dfface/feishu-bot/internal/logger"
 )
 
 // main 应用程序入口函数
@@ -58,17 +58,12 @@ func main() {
 	}
 
 	// 初始化日志
-	logger, err := initLogger(cfg.Log)
-	if err != nil {
-		fmt.Printf("Failed to init logger: %v\n", err)
-		os.Exit(1)
-	}
-	defer logger.Sync()
+	logger.Init(cfg.Log)
 
 	logger.Info("Starting feishu-bot...")
 
 	// 创建机器人工厂
-	botFactory := bots.NewBotFactory(cfg, logger)
+	botFactory := bots.NewBotFactory(cfg)
 
 	// 创建机器人
 	bots, err := botFactory.CreateBots()
@@ -299,40 +294,4 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("server.port", 8080)
 	v.SetDefault("log.level", "info")
 	v.SetDefault("log.format", "json")
-}
-
-// initLogger 初始化日志
-//
-// 此函数初始化日志系统，根据配置设置日志级别和格式。
-// 主要完成以下工作：
-// 1. 解析日志级别
-// 2. 配置日志格式（json 或 console）
-// 3. 配置日志输出路径
-//
-// 参数：
-// - cfg：日志配置
-//
-// 返回值：
-// - *zap.Logger：初始化的日志记录器
-// - error：初始化过程中的错误，成功则返回 nil
-func initLogger(cfg config.LogConfig) (*zap.Logger, error) {
-	var level zapcore.Level
-	if err := level.UnmarshalText([]byte(cfg.Level)); err != nil {
-		level = zapcore.InfoLevel
-	}
-
-	config := zap.Config{
-		Level:            zap.NewAtomicLevelAt(level),
-		Development:      false,
-		Encoding:         cfg.Format,
-		EncoderConfig:    zap.NewProductionEncoderConfig(),
-		OutputPaths:      []string{"stdout"},
-		ErrorOutputPaths: []string{"stderr"},
-	}
-
-	if cfg.Format == "console" {
-		config.EncoderConfig = zap.NewDevelopmentEncoderConfig()
-	}
-
-	return config.Build()
 }

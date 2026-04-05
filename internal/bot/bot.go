@@ -9,6 +9,7 @@ import (
 	larkim "github.com/larksuite/oapi-sdk-go/v3/service/im/v1"
 	"go.uber.org/zap"
 
+	"github.com/dfface/feishu-bot/internal/logger"
 	"github.com/dfface/feishu-bot/internal/message"
 )
 
@@ -30,7 +31,6 @@ type BaseBot struct {
 	MsgProcessor message.MessageReceiver // 消息处理器，用于解析接收到的消息
 	MsgSender    message.MessageSender   // 消息发送器，用于发送和回复消息
 	FileUploader message.FileUploader    // 文件上传器，用于上传图片和文件
-	Logger       *zap.Logger             // 日志记录器
 }
 
 // NewBaseBot 创建基础机器人
@@ -40,20 +40,18 @@ type BaseBot struct {
 //
 //	name - 机器人名称
 //	client - 飞书 API 客户端
-//	logger - 日志记录器
 //
 // 返回:
 //
 //	*BaseBot - 初始化好的基础机器人实例
-func NewBaseBot(name string, client *lark.Client, logger *zap.Logger) *BaseBot {
+func NewBaseBot(name string, client *lark.Client) *BaseBot {
 	return &BaseBot{
 		name:         name,
 		client:       client,
 		dispatcher:   dispatcher.NewEventDispatcher("", ""),
-		MsgProcessor: message.NewProcessor(client, logger),
-		MsgSender:    message.NewMessageSender(client, logger),
-		FileUploader: message.NewFileUploader(client, logger),
-		Logger:       logger,
+		MsgProcessor: message.NewProcessor(client),
+		MsgSender:    message.NewMessageSender(client),
+		FileUploader: message.NewFileUploader(client),
 	}
 }
 
@@ -87,10 +85,10 @@ func (b *BaseBot) ReplyText(ctx context.Context, messageID string, text string) 
 	builder := message.NewTextMessageBuilder(text)
 	_, err := b.MsgSender.ReplyMessage(ctx, messageID, builder)
 	if err != nil {
-		b.Logger.Error("Failed to reply text message", zap.Error(err))
+		logger.Error("Failed to reply text message", zap.Error(err))
 		return err
 	}
-	b.Logger.Info("Text message replied successfully",
+	logger.Info("Text message replied successfully",
 		zap.String("message_id", messageID),
 		zap.String("text", text))
 	return nil
@@ -110,10 +108,10 @@ func (b *BaseBot) ReplyText(ctx context.Context, messageID string, text string) 
 func (b *BaseBot) ReplyRichText(ctx context.Context, messageID string, builder *message.RichTextMessageBuilder) error {
 	_, err := b.MsgSender.ReplyMessage(ctx, messageID, builder)
 	if err != nil {
-		b.Logger.Error("Failed to reply rich text message", zap.Error(err))
+		logger.Error("Failed to reply rich text message", zap.Error(err))
 		return err
 	}
-	b.Logger.Info("Rich text message replied successfully",
+	logger.Info("Rich text message replied successfully",
 		zap.String("message_id", messageID))
 	return nil
 }
@@ -133,10 +131,10 @@ func (b *BaseBot) SendText(ctx context.Context, receiveID string, text string) e
 	builder := message.NewTextMessageBuilder(text)
 	_, err := b.MsgSender.SendMessage(ctx, message.ReceiveIDTypeOpenID, receiveID, builder)
 	if err != nil {
-		b.Logger.Error("Failed to send text message", zap.Error(err))
+		logger.Error("Failed to send text message", zap.Error(err))
 		return err
 	}
-	b.Logger.Info("Text message sent successfully",
+	logger.Info("Text message sent successfully",
 		zap.String("receive_id", receiveID),
 		zap.String("text", text))
 	return nil
@@ -156,10 +154,10 @@ func (b *BaseBot) SendText(ctx context.Context, receiveID string, text string) e
 func (b *BaseBot) AddReaction(ctx context.Context, messageID string, emojiType message.EmojiType) error {
 	_, err := b.MsgSender.AddReaction(ctx, messageID, emojiType)
 	if err != nil {
-		b.Logger.Error("Failed to add reaction", zap.Error(err))
+		logger.Error("Failed to add reaction", zap.Error(err))
 		return err
 	}
-	b.Logger.Info("Reaction added successfully",
+	logger.Info("Reaction added successfully",
 		zap.String("message_id", messageID),
 		zap.String("emoji_type", string(emojiType)))
 	return nil

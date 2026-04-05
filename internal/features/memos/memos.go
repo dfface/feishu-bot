@@ -121,7 +121,6 @@ func (f *MemosFeature) Initialize(featureConfig *config.FeatureConfig) error {
 			f.memosClient = memos.NewClient(
 				f.memosConfig.BaseURL,
 				f.memosConfig.AccessToken,
-				f.logger,
 			)
 		}
 	}
@@ -157,7 +156,6 @@ func getStringValue(m map[string]interface{}, key, defaultValue string) string {
 // - baseBot：基础机器人实例
 func (f *MemosFeature) SetBaseBot(baseBot *bot.BaseBot) {
 	f.baseBot = baseBot
-	f.logger = baseBot.Logger
 }
 
 // SetMemosClient 设置 Memos 客户端

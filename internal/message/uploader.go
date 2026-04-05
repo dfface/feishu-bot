@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/dfface/feishu-bot/internal/logger"
 	lark "github.com/larksuite/oapi-sdk-go/v3"
 	larkim "github.com/larksuite/oapi-sdk-go/v3/service/im/v1"
 	"go.uber.org/zap"
@@ -15,7 +16,6 @@ import (
 // 实现了 FileUploader 接口，提供图片和文件上传功能
 type DefaultFileUploader struct {
 	client *lark.Client
-	logger *zap.Logger
 }
 
 // NewFileUploader 创建文件上传器
@@ -23,15 +23,13 @@ type DefaultFileUploader struct {
 // 参数:
 //
 //	client - 飞书 API 客户端
-//	logger - 日志记录器
 //
 // 返回:
 //
 //	FileUploader - 初始化好的文件上传器实例
-func NewFileUploader(client *lark.Client, logger *zap.Logger) FileUploader {
+func NewFileUploader(client *lark.Client) FileUploader {
 	return &DefaultFileUploader{
 		client: client,
-		logger: logger,
 	}
 }
 
@@ -81,7 +79,7 @@ func (u *DefaultFileUploader) UploadImage(ctx context.Context, imagePath string,
 		return "", fmt.Errorf("failed to upload image: code=%d, msg=%s", resp.Code, resp.Msg)
 	}
 
-	u.logger.Info("Image uploaded successfully",
+	logger.Info("Image uploaded successfully",
 		zap.String("image_key", *resp.Data.ImageKey),
 		zap.String("image_path", filepath.Base(imagePath)),
 	)
@@ -148,7 +146,7 @@ func (u *DefaultFileUploader) UploadFile(ctx context.Context, filePath string, f
 		return "", fmt.Errorf("failed to upload file: code=%d, msg=%s", resp.Code, resp.Msg)
 	}
 
-	u.logger.Info("File uploaded successfully",
+	logger.Info("File uploaded successfully",
 		zap.String("file_key", *resp.Data.FileKey),
 		zap.String("file_name", fileName),
 	)

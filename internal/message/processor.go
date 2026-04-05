@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/dfface/feishu-bot/internal/logger"
 	"github.com/google/uuid"
 	lark "github.com/larksuite/oapi-sdk-go/v3"
 	larkim "github.com/larksuite/oapi-sdk-go/v3/service/im/v1"
@@ -20,7 +21,6 @@ import (
 // 支持文本、富文本、图片、文件、音频、视频、表情包、位置、群组名片、人名片、系统消息等多种类型
 type Processor struct {
 	client  *lark.Client // 飞书 API 客户端
-	logger  *zap.Logger  // 日志记录器
 	tempDir string       // 临时文件存储目录，用于保存下载的资源
 }
 
@@ -29,18 +29,16 @@ type Processor struct {
 // 参数:
 //
 //	client - 飞书 API 客户端
-//	logger - 日志记录器
 //
 // 返回:
 //
 //	*Processor - 初始化好的消息处理器实例
-func NewProcessor(client *lark.Client, logger *zap.Logger) *Processor {
+func NewProcessor(client *lark.Client) *Processor {
 	tempDir := filepath.Join(os.TempDir(), "feishu-bot-messages")
 	_ = os.MkdirAll(tempDir, 0755)
 
 	return &Processor{
 		client:  client,
-		logger:  logger,
 		tempDir: tempDir,
 	}
 }
@@ -87,7 +85,7 @@ func (p *Processor) Process(ctx context.Context, msg *larkim.EventMessage) (*Mes
 		for i := range resources {
 			resources[i].MessageID = *msg.MessageId
 			if err := p.downloadResource(ctx, &resources[i]); err != nil {
-				p.logger.Warn("Failed to download resource from rich text", zap.Error(err))
+				logger.Warn("Failed to download resource from rich text", zap.Error(err))
 			} else {
 				content.Resources = append(content.Resources, resources[i])
 			}
@@ -101,7 +99,7 @@ func (p *Processor) Process(ctx context.Context, msg *larkim.EventMessage) (*Mes
 		resource.MessageID = *msg.MessageId
 		// 下载图片
 		if err := p.downloadResource(ctx, &resource); err != nil {
-			p.logger.Warn("Failed to download image", zap.Error(err))
+			logger.Warn("Failed to download image", zap.Error(err))
 		}
 		content.Resources = append(content.Resources, resource)
 
@@ -113,7 +111,7 @@ func (p *Processor) Process(ctx context.Context, msg *larkim.EventMessage) (*Mes
 		resource.MessageID = *msg.MessageId
 		// 下载文件
 		if err := p.downloadResource(ctx, &resource); err != nil {
-			p.logger.Warn("Failed to download file", zap.Error(err))
+			logger.Warn("Failed to download file", zap.Error(err))
 		}
 		content.Resources = append(content.Resources, resource)
 
@@ -125,7 +123,7 @@ func (p *Processor) Process(ctx context.Context, msg *larkim.EventMessage) (*Mes
 		resource.MessageID = *msg.MessageId
 		// 下载音频
 		if err := p.downloadResource(ctx, &resource); err != nil {
-			p.logger.Warn("Failed to download audio", zap.Error(err))
+			logger.Warn("Failed to download audio", zap.Error(err))
 		}
 		content.Resources = append(content.Resources, resource)
 
@@ -137,7 +135,7 @@ func (p *Processor) Process(ctx context.Context, msg *larkim.EventMessage) (*Mes
 		resource.MessageID = *msg.MessageId
 		// 下载视频
 		if err := p.downloadResource(ctx, &resource); err != nil {
-			p.logger.Warn("Failed to download media", zap.Error(err))
+			logger.Warn("Failed to download media", zap.Error(err))
 		}
 		content.Resources = append(content.Resources, resource)
 
@@ -654,7 +652,7 @@ func (p *Processor) downloadResource(ctx context.Context, resource *Resource) er
 	// 也更新 FileName 为我们生成的文件名
 	resource.FileName = fileName
 
-	p.logger.Info("Resource downloaded",
+	logger.Info("Resource downloaded",
 		zap.String("type", string(resource.Type)),
 		zap.String("message_id", resource.MessageID),
 		zap.String("file_key", fileKey),

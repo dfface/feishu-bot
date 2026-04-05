@@ -17,6 +17,7 @@ import (
 
 	"github.com/dfface/feishu-bot/internal/bot"
 	"github.com/dfface/feishu-bot/internal/features"
+	"github.com/dfface/feishu-bot/internal/logger"
 )
 
 // Bot 统一的机器人实现
@@ -38,13 +39,12 @@ type Bot struct {
 // 参数：
 // - name：机器人名称
 // - client：飞书 API 客户端
-// - logger：日志记录器
 //
 // 返回值：
 // - *Bot：创建的机器人实例
-func NewBot(name string, client *lark.Client, logger *zap.Logger) *Bot {
+func NewBot(name string, client *lark.Client) *Bot {
 	return &Bot{
-		BaseBot:  bot.NewBaseBot(name, client, logger),
+		BaseBot:  bot.NewBaseBot(name, client),
 		features: make(map[string]features.Feature),
 	}
 }
@@ -93,7 +93,7 @@ func (b *Bot) HandleMessage(ctx context.Context, event *larkim.P2MessageReceiveV
 	// 解析消息内容
 	msgContent, err := b.MsgProcessor.Process(ctx, msg)
 	if err != nil {
-		b.Logger.Error("Failed to process message", zap.Error(err))
+		logger.Error("Failed to process message", zap.Error(err))
 		return b.SendText(ctx, *sender.SenderId.OpenId, "消息处理失败")
 	}
 

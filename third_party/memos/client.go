@@ -11,8 +11,9 @@ import (
 	"strings"
 
 	"connectrpc.com/connect"
-	"github.com/usememos/memos/proto/gen/api/v1/apiv1connect"
+	"github.com/dfface/feishu-bot/internal/logger"
 	v1pb "github.com/usememos/memos/proto/gen/api/v1"
+	"github.com/usememos/memos/proto/gen/api/v1/apiv1connect"
 	"go.uber.org/zap"
 )
 
@@ -188,10 +189,9 @@ type ClientInterface interface {
 
 // Client Memos API 客户端，实现了 ClientInterface 接口
 type Client struct {
-	baseURL    string
+	baseURL     string
 	accessToken string
-	httpClient *http.Client
-	logger     *zap.Logger
+	httpClient  *http.Client
 
 	InstanceService   apiv1connect.InstanceServiceClient
 	AuthService       apiv1connect.AuthServiceClient
@@ -205,12 +205,14 @@ var _ ClientInterface = (*Client)(nil)
 
 // NewClient 创建 Memos 客户端
 // 参数:
-//   baseURL - Memos 服务器的基础 URL，例如 "https://memos.example.com"
-//   accessToken - 访问令牌，用于认证
-//   logger - 日志记录器
+//
+//	baseURL - Memos 服务器的基础 URL，例如 "https://memos.example.com"
+//	accessToken - 访问令牌，用于认证
+//
 // 返回值:
-//   *Client - Memos 客户端实例
-func NewClient(baseURL, accessToken string, logger *zap.Logger) *Client {
+//
+//	*Client - Memos 客户端实例
+func NewClient(baseURL, accessToken string) *Client {
 	if !strings.HasPrefix(baseURL, "http://") && !strings.HasPrefix(baseURL, "https://") {
 		baseURL = "https://" + baseURL
 	}
@@ -223,10 +225,9 @@ func NewClient(baseURL, accessToken string, logger *zap.Logger) *Client {
 	}
 
 	return &Client{
-		baseURL:    baseURL,
+		baseURL:     baseURL,
 		accessToken: accessToken,
-		httpClient: httpClient,
-		logger:     logger,
+		httpClient:  httpClient,
 
 		InstanceService:   apiv1connect.NewInstanceServiceClient(httpClient, baseURL),
 		AuthService:       apiv1connect.NewAuthServiceClient(httpClient, baseURL),
@@ -265,7 +266,7 @@ func (c *Client) CreateMemo(ctx context.Context, content string, visibility Visi
 		return nil, fmt.Errorf("failed to create memo: %w", err)
 	}
 
-	c.logger.Info("Memo created successfully", zap.String("memo_name", resp.Msg.Name))
+	logger.Info("Memo created successfully", zap.String("memo_name", resp.Msg.Name))
 	return resp.Msg, nil
 }
 
@@ -292,7 +293,7 @@ func (c *Client) UpdateMemo(ctx context.Context, memo *v1pb.Memo) (*v1pb.Memo, e
 		return nil, fmt.Errorf("failed to update memo: %w", err)
 	}
 
-	c.logger.Info("Memo updated successfully", zap.String("memo_name", resp.Msg.Name))
+	logger.Info("Memo updated successfully", zap.String("memo_name", resp.Msg.Name))
 	return resp.Msg, nil
 }
 
@@ -306,7 +307,7 @@ func (c *Client) DeleteMemo(ctx context.Context, memoName string) error {
 		return fmt.Errorf("failed to delete memo: %w", err)
 	}
 
-	c.logger.Info("Memo deleted successfully", zap.String("memo_name", memoName))
+	logger.Info("Memo deleted successfully", zap.String("memo_name", memoName))
 	return nil
 }
 
@@ -365,7 +366,7 @@ func (c *Client) UploadResourceFromBytes(ctx context.Context, data []byte, filen
 		return nil, fmt.Errorf("failed to create attachment: %w", err)
 	}
 
-	c.logger.Info("Resource uploaded successfully",
+	logger.Info("Resource uploaded successfully",
 		zap.String("attachment_name", resp.Msg.Name),
 		zap.String("filename", resp.Msg.Filename),
 	)
@@ -426,7 +427,7 @@ func (c *Client) DeleteAttachment(ctx context.Context, attachmentName string) er
 		return fmt.Errorf("failed to delete attachment: %w", err)
 	}
 
-	c.logger.Info("Attachment deleted successfully", zap.String("attachment_name", attachmentName))
+	logger.Info("Attachment deleted successfully", zap.String("attachment_name", attachmentName))
 	return nil
 }
 

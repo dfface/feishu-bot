@@ -15,6 +15,7 @@ import (
 	"github.com/dfface/feishu-bot/internal/bot"
 	"github.com/dfface/feishu-bot/internal/config"
 	"github.com/dfface/feishu-bot/internal/features"
+	"github.com/dfface/feishu-bot/internal/logger"
 	lark "github.com/larksuite/oapi-sdk-go/v3"
 )
 
@@ -25,7 +26,6 @@ import (
 // BotFactory 负责读取配置、创建机器人实例、注册功能和设置消息处理器。
 type BotFactory struct {
 	config          *config.Config            // 应用配置
-	logger          *zap.Logger               // 日志记录器
 	featureRegistry *features.FeatureRegistry // 功能注册中心
 }
 
@@ -38,17 +38,15 @@ type BotFactory struct {
 //
 // 参数：
 // - cfg：应用配置
-// - logger：日志记录器
 //
 // 返回值：
 // - *BotFactory：创建的机器人工厂实例
-func NewBotFactory(cfg *config.Config, logger *zap.Logger) *BotFactory {
+func NewBotFactory(cfg *config.Config) *BotFactory {
 	registry := features.NewFeatureRegistry()
 	features.RegisterFeatures(registry)
 
 	return &BotFactory{
 		config:          cfg,
-		logger:          logger,
 		featureRegistry: registry,
 	}
 }
@@ -75,7 +73,7 @@ func (f *BotFactory) CreateBots() ([]bot.Bot, error) {
 
 		createdBot, err := f.createBot(botConfig)
 		if err != nil {
-			f.logger.Error("Failed to create bot",
+			logger.Error("Failed to create bot",
 				zap.String("bot_id", botConfig.ID),
 				zap.Error(err))
 			continue
@@ -111,13 +109,13 @@ func (f *BotFactory) createBot(botConfig config.BotConfig) (bot.Bot, error) {
 
 	// 为每个机器人创建独立的 lark.Client，使用机器人自己的飞书配置
 	feishuClient := lark.NewClient(botConfig.Feishu.AppID, botConfig.Feishu.AppSecret)
-	newBot := NewBot(botConfig.Name, feishuClient, f.logger)
+	newBot := NewBot(botConfig.Name, feishuClient)
 
 	// 注册功能
 	for _, featureMapping := range botConfig.Features {
 		feature := f.featureRegistry.Get(featureMapping.FeatureID)
 		if feature == nil {
-			f.logger.Warn("Feature not found", zap.String("feature_id", featureMapping.FeatureID))
+			logger.Warn("Feature not found", zap.String("feature_id", featureMapping.FeatureID))
 			continue
 		}
 
@@ -125,7 +123,7 @@ func (f *BotFactory) createBot(botConfig config.BotConfig) (bot.Bot, error) {
 		for _, featureConfig := range f.config.Features {
 			if featureConfig.ID == featureMapping.FeatureID && featureConfig.Enabled {
 				if err := feature.Initialize(&featureConfig); err != nil {
-					f.logger.Error("Failed to initialize feature",
+					logger.Error("Failed to initialize feature",
 						zap.String("feature_id", featureMapping.FeatureID),
 						zap.Error(err))
 				}
