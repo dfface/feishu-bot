@@ -17,10 +17,10 @@ type Config struct {
 // FeatureConfig 功能配置
 type FeatureConfig struct {
 	ID          string                 `mapstructure:"id"`
-	Name        string                 `mapstructure:"name"`
-	Enabled     bool                   `mapstructure:"enabled"`
-	Description string                 `mapstructure:"description"`
-	Config      map[string]interface{} `mapstructure:"config"`
+	Name        string                 `mapstructure:"name"`        // 可选，使用功能默认值
+	Enabled     bool                   `mapstructure:"enabled"`     // 可选，默认为 true
+	Description string                 `mapstructure:"description"` // 可选，使用功能默认值
+	Config      map[string]interface{} `mapstructure:"config"`      // 可选，使用功能默认值
 	// 所有功能配置都通过 Config map 传递，便于扩展
 }
 
@@ -132,6 +132,8 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("log.format", "json")
 	v.SetDefault("feishu.use_websocket", true)
 	v.SetDefault("memos.default_visibility", "PRIVATE")
+	// 功能默认启用
+	v.SetDefault("features.*.enabled", true)
 }
 
 // validateConfig 验证配置
