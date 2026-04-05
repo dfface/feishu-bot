@@ -8,19 +8,50 @@ import (
 
 // Config 应用配置
 type Config struct {
-	Feishu FeishuConfig `mapstructure:"feishu"`
-	Memos  MemosConfig  `mapstructure:"memos"`
-	Server ServerConfig `mapstructure:"server"`
-	Log    LogConfig    `mapstructure:"log"`
+	Server   ServerConfig    `mapstructure:"server"`
+	Log      LogConfig       `mapstructure:"log"`
+	Features []FeatureConfig `mapstructure:"features"`
+	Bots     []BotConfig     `mapstructure:"bots"`
 }
 
-// ValidateFeishuOnly 只验证飞书配置
+// FeatureConfig 功能配置
+type FeatureConfig struct {
+	ID          string                 `mapstructure:"id"`
+	Name        string                 `mapstructure:"name"`
+	Enabled     bool                   `mapstructure:"enabled"`
+	Description string                 `mapstructure:"description"`
+	Config      map[string]interface{} `mapstructure:"config"`
+	// 所有功能配置都通过 Config map 传递，便于扩展
+}
+
+// BotConfig 机器人配置
+type BotConfig struct {
+	ID      string            `mapstructure:"id"`
+	Name    string            `mapstructure:"name"`
+	Enabled bool              `mapstructure:"enabled"`
+	Features []FeatureMapping `mapstructure:"features"`
+	Config  map[string]interface{} `mapstructure:"config"`
+	Feishu  FeishuConfig      `mapstructure:"feishu"` // 飞书配置
+}
+
+// FeatureMapping 功能映射配置
+type FeatureMapping struct {
+	FeatureID string `mapstructure:"feature_id"`
+	Default   bool   `mapstructure:"default"`
+}
+
+// ValidateFeishuOnly 只验证飞书配置（已废弃，现在飞书配置在每个机器人中）
 func (c *Config) ValidateFeishuOnly() error {
-	if c.Feishu.AppID == "" {
-		return fmt.Errorf("feishu.app_id is required")
-	}
-	if c.Feishu.AppSecret == "" {
-		return fmt.Errorf("feishu.app_secret is required")
+	// 检查所有启用的机器人的飞书配置
+	for _, bot := range c.Bots {
+		if bot.Enabled {
+			if bot.Feishu.AppID == "" {
+				return fmt.Errorf("feishu.app_id is required for bot: %s", bot.Name)
+			}
+			if bot.Feishu.AppSecret == "" {
+				return fmt.Errorf("feishu.app_secret is required for bot: %s", bot.Name)
+			}
+		}
 	}
 	return nil
 }
@@ -105,18 +136,37 @@ func setDefaults(v *viper.Viper) {
 
 // validateConfig 验证配置
 func validateConfig(cfg *Config) error {
-	if cfg.Feishu.AppID == "" {
-		return fmt.Errorf("feishu.app_id is required")
+	// 检查所有启用的机器人的飞书配置
+	for _, bot := range cfg.Bots {
+		if bot.Enabled {
+			if bot.Feishu.AppID == "" {
+				return fmt.Errorf("feishu.app_id is required for bot: %s", bot.Name)
+			}
+			if bot.Feishu.AppSecret == "" {
+				return fmt.Errorf("feishu.app_secret is required for bot: %s", bot.Name)
+			}
+		}
 	}
-	if cfg.Feishu.AppSecret == "" {
-		return fmt.Errorf("feishu.app_secret is required")
+
+	// 检查所有启用的 memos 功能的配置
+	for _, feature := range cfg.Features {
+		if feature.ID == "memos" && feature.Enabled {
+			if feature.Config == nil {
+				return fmt.Errorf("config is required for feature: %s", feature.Name)
+			}
+			memosConfig, ok := feature.Config["memos"].(map[string]interface{})
+			if !ok {
+				return fmt.Errorf("memos config is required for feature: %s", feature.Name)
+			}
+			if baseURL, ok := memosConfig["base_url"].(string); !ok || baseURL == "" {
+				return fmt.Errorf("memos.base_url is required for feature: %s", feature.Name)
+			}
+			if accessToken, ok := memosConfig["access_token"].(string); !ok || accessToken == "" {
+				return fmt.Errorf("memos.access_token is required for feature: %s", feature.Name)
+			}
+		}
 	}
-	if cfg.Memos.BaseURL == "" {
-		return fmt.Errorf("memos.base_url is required")
-	}
-	if cfg.Memos.AccessToken == "" {
-		return fmt.Errorf("memos.access_token is required")
-	}
+
 	return nil
 }
 

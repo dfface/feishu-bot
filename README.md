@@ -1,60 +1,32 @@
 # Feishu Bot 飞书机器人平台
 
-一个高度可扩展的飞书机器人平台，基于 Go 语言开发，支持长连接接入，轻松接入多个机器人完成不同任务。
+## 📋 项目简介
 
-## 特性
+Feishu Bot 是一个高度可扩展的飞书机器人平台，基于 Go 语言开发，通过配置文件轻松管理多个机器人和功能。
 
-- 🚀 **模块化架构**：清晰的代码结构，易于扩展和维护
-- 🔌 **插件式机器人**：通过接口实现，轻松添加新的机器人
-- 📱 **飞书长连接**：支持 WebSocket 长连接模式，无需公网 IP
-- 📝 **Memos 集成**：内置 Memos 机器人，支持文本、图片、视频等附件
-- 🔄 **Echo Bot**：内置回声机器人，用于测试和调试
+- **配置驱动**：通过 YAML 配置文件定义机器人和功能的映射关系
+- **模块化架构**：清晰的代码结构，易于扩展和维护
+- **功能丰富**：内置 Echo、Memos 等功能，支持文本、图片、文件等多种消息类型
+- **长连接支持**：使用 WebSocket 长连接模式，无需公网 IP
+
+## ✨ 核心特性
+
+- 🚀 **配置化管理**：通过配置文件轻松管理多个机器人和功能
+- 🔌 **多功能支持**：一个机器人可以同时支持多个功能
+- 📱 **长连接接入**：无需公网 IP，支持 WebSocket 长连接
 - ⚙️ **灵活配置**：支持 YAML 配置文件和环境变量
 - 📊 **结构化日志**：使用 Zap 日志库，支持 JSON 和 Console 格式
-- 📋 **消息转换**：内置消息转换器，支持将飞书消息转换为 Memos 格式
+- 📋 **当前支持的功能**：
+  - 🔄 **Echo 测试**：内置回声功能，用于测试和调试
+  - 📝 **Memos 集成**：支持将消息保存到 Memos，支持文本、图片、文件等
 
-## 项目结构
-
-```
-feishu-bot/
-├── cmd/
-│   └── feishu-bot/          # 主程序入口
-│       └── main.go
-├── internal/
-│   └── bots/                 # 机器人实现
-│       ├── echo_bot.go       # 回声机器人（用于测试）
-│       └── memos_bot.go      # Memos 机器人
-├── pkg/
-│   ├── bot/                  # 机器人基础框架
-│   │   └── bot.go
-│   ├── config/               # 配置管理
-│   │   └── config.go
-│   ├── converter/            # 消息转换器
-│   │   └── memos_converter.go  # Memos 消息转换器
-│   └── message/              # 消息处理核心
-│       ├── builder.go        # 消息构建器
-│       ├── const.go          # 常量定义
-│       ├── processor.go      # 消息处理器
-│       ├── sender.go         # 消息发送器
-│       ├── types.go          # 类型定义
-│       └── uploader.go       # 文件上传器
-├── third_party/              # 第三方服务客户端
-│   └── memos/                # Memos 客户端
-│       └── client.go
-├── config.yaml.example       # 配置文件示例
-├── .gitignore
-├── go.mod
-├── go.sum
-└── README.md
-```
-
-## 快速开始
+## 🚀 快速开始
 
 ### 前置要求
 
 - Go 1.25+
 - 飞书企业自建应用
-- Memos 服务（仅用于 Memos 机器人）
+- Memos 服务（仅用于 Memos 功能）
 
 ### 1. 克隆项目
 
@@ -80,89 +52,141 @@ cp config.yaml.example config.yaml
 编辑 `config.yaml` 文件，填入你的配置信息：
 
 ```yaml
-feishu:
-  app_id: "cli_xxxxxxxxxx"           # 飞书应用 ID
-  app_secret: "xxxxxxxxxx"           # 飞书应用密钥
-  verification_token: ""              # 验证令牌（可选）
-  encrypt_key: ""                     # 加密密钥（可选）
-  use_websocket: true                 # 使用 WebSocket 长连接
-
-memos:
-  base_url: "http://localhost:5230"  # Memos 服务地址
-  access_token: "your_token_here"     # Memos 访问令牌
-  default_visibility: "PRIVATE"        # 默认可见性
-
+# 全局配置
 server:
-  port: 8080                          # 监听端口
+  port: 8080
 
 log:
-  level: "info"                        # 日志级别
-  format: "json"                       # 日志格式
+  level: "info"
+  format: "json"
+
+# 功能配置
+features:
+  - id: "echo"
+    name: "回声功能"
+    enabled: true
+    config:
+      prefix: "!echo"
+
+  - id: "memos"
+    name: "Memos 保存"
+    enabled: true
+    config:
+      prefix: "!memos"
+      memos:
+        base_url: "http://localhost:5230"
+        access_token: "your_memos_token"
+        default_visibility: "PRIVATE"
+
+# 机器人配置
+bots:
+  - id: "multi-bot"
+    name: "多功能机器人"
+    enabled: true
+    feishu:
+      app_id: "cli_xxxxxxxxxx"
+      app_secret: "xxxxxxxxxx"
+      use_websocket: true
+    features:
+      - feature_id: "echo"
+        default: true  # 设置为默认功能
+      - feature_id: "memos"
 ```
 
-### 4. 获取飞书应用凭证
-
-1. 访问 [飞书开放平台](https://open.feishu.cn/)
-2. 创建企业自建应用
-3. 在「凭证与基础信息」中获取 App ID 和 App Secret
-4. 在「事件订阅」中配置：
-   - 请求地址：`https://your-domain.com/webhook/event`
-   - 订阅事件：接收消息 `im.message.receive_v1`
-
-### 5. 获取 Memos 访问令牌（仅用于 Memos 机器人）
-
-1. 登录你的 Memos 服务
-2. 在设置中创建访问令牌
-3. 复制令牌并填入配置文件
-
-### 6. 运行
-
-#### 运行 Memos 机器人
+### 4. 运行
 
 ```bash
 go run cmd/feishu-bot/main.go --config config.yaml
 ```
 
-#### 运行 Echo 机器人（用于测试）
+## ⚙️ 配置指南
 
-```bash
-go run cmd/feishu-bot/main.go --echo --config config.yaml
-```
+### 配置文件结构
 
-## 配置说明
+配置文件采用 YAML 格式，主要包含以下部分：
 
-### 环境变量
+1. **全局配置**：服务器和日志设置
+2. **功能配置**：定义可用的功能模块
+3. **机器人配置**：定义机器人及其功能映射
 
-也可以使用环境变量配置，优先级高于配置文件：
+### 功能配置
 
-```bash
-export FEISHU_BOT_FEISHU_APP_ID="cli_xxxxxxxxxx"
-export FEISHU_BOT_FEISHU_APP_SECRET="xxxxxxxxxx"
-export FEISHU_BOT_MEMOS_BASE_URL="http://localhost:5230"
-export FEISHU_BOT_MEMOS_ACCESS_TOKEN="your_token"
-```
-
-### 配置项详解
-
-| 配置项 | 说明 | 必填 |
+| 配置项 | 说明 | 示例 |
 |--------|------|------|
-| feishu.app_id | 飞书应用 ID | 是 |
-| feishu.app_secret | 飞书应用密钥 | 是 |
-| feishu.verification_token | 验证令牌 | 否 |
-| feishu.encrypt_key | 加密密钥 | 否 |
-| feishu.use_websocket | 使用 WebSocket | 否 |
-| memos.base_url | Memos 服务地址 | 是（仅 Memos 机器人） |
-| memos.access_token | Memos 访问令牌 | 是（仅 Memos 机器人） |
-| memos.default_visibility | 默认可见性 | 否 |
-| server.port | 监听端口 | 否 |
-| log.level | 日志级别 | 否 |
-| log.format | 日志格式 | 否 |
+| id | 功能唯一标识符 | `echo` |
+| name | 功能名称 | `回声功能` |
+| enabled | 是否启用 | `true` |
+| config | 功能配置（map 格式） | 见下方示例 |
 
-## 机器人使用
+**功能配置示例**：
 
-### Memos 机器人
+```yaml
+# Echo 功能配置
+config:
+  prefix: "!echo"  # 命令前缀
 
-#### 功能
+# Memos 功能配置
+config:
+  prefix: "!memos"  # 命令前缀
+  memos:           # Memos 特定配置
+    base_url: "http://localhost:5230"
+    access_token: "your_memos_token"
+    default_visibility: "PRIVATE"
+```
+
+### 机器人配置
+
+| 配置项 | 说明 | 示例 |
+|--------|------|------|
+| id | 机器人唯一标识符 | `multi-bot` |
+| name | 机器人名称 | `多功能机器人` |
+| enabled | 是否启用 | `true` |
+| feishu | 飞书应用配置 | 见下方示例 |
+| features | 功能映射列表 | 见下方示例 |
+
+**飞书配置示例**：
+
+```yaml
+feishu:
+  app_id: "cli_xxxxxxxxxx"
+  app_secret: "xxxxxxxxxx"
+  verification_token: ""
+  encrypt_key: ""
+  use_websocket: true
+```
+
+**功能映射示例**：
+
+```yaml
+features:
+  - feature_id: "echo"
+    default: true  # 设置为默认功能
+  - feature_id: "memos"
+```
+
+## 📱 使用方法
+
+### 多功能机器人
+
+**功能说明**：
+- `!echo`：回声功能，原样回复消息
+- `!memos`：Memos 功能，保存消息到 Memos
+
+**使用示例**：
+1. 发送 `!echo 你好` → 触发回声功能，回复 "你好\n已收到"
+2. 发送 `!memos 测试记录` → 触发 Memos 功能，保存到 Memos 并回复 "已保存到 Memos"
+3. 发送任意内容 → 触发默认功能（echo）
+
+### 功能详情
+
+#### Echo 功能
+
+- ✅ 文本消息：原样回复并添加「已收到」
+- ✅ 富文本消息：原样回复并添加「已收到」
+- ✅ 图片：重新上传并回复
+- ✅ 表情反应：自动添加相同的表情反应
+
+#### Memos 功能
 
 - ✅ 文本消息：直接保存为 Memo
 - ✅ 富文本消息：转换为 Markdown 格式保存
@@ -171,124 +195,153 @@ export FEISHU_BOT_MEMOS_ACCESS_TOKEN="your_token"
 - ✅ 音频：下载并上传到 Memos
 - ✅ 视频：下载并上传到 Memos
 
-#### 使用方法
+## 🏗️ 架构设计
 
-1. 在飞书中添加机器人为好友
-2. 直接发送消息给机器人
-3. 消息会自动保存到你的 Memos
+### 核心概念
 
-### Echo 机器人
+- **功能（Feature）**：独立的功能模块，如 echo、memos 等
+- **机器人（Bot）**：可以包含多个功能的机器人实例
+- **配置驱动**：通过配置文件定义功能和机器人的映射关系
 
-#### 功能
+### 智能功能匹配
 
-- ✅ 文本消息：原样回复并添加「已收到」
-- ✅ 富文本消息：原样回复并添加「已收到」
-- ✅ 图片：重新上传并回复
-- ✅ 表情反应：自动添加相同的表情反应
+- **前缀匹配**：根据消息前缀匹配相应的功能（如 `!echo`、`!memos`）
+- **默认功能**：如果没有匹配的前缀，使用默认功能
+- **单功能机器人**：只有一个功能时，直接使用该功能
 
-#### 使用方法
+### 项目结构
 
-1. 运行 `go run cmd/feishu-bot/main.go --echo`
-2. 在飞书中发送消息给机器人
-3. 机器人会原样回复消息
-
-## 架构设计
-
-### 核心接口
-
-```go
-// Bot 机器人接口
-type Bot interface {
-    Name() string
-    GetDispatcher() *dispatcher.EventDispatcher
-}
+```
+feishu-bot/
+├── cmd/                  # 主程序入口
+│   └── feishu-bot/
+│       └── main.go
+├── internal/             # 内部实现
+│   ├── bots/             # 机器人实现
+│   │   ├── bot.go        # 统一的 Bot 实现
+│   │   └── bot_factory.go # 机器人工厂
+│   └── features/         # 功能模块
+│       ├── echo/         # 回声功能
+│       ├── memos/        # Memos 功能
+│       └── features.go   # 功能接口和注册中心
+├── pkg/                  # 公共包
+│   ├── bot/              # 机器人基础框架
+│   ├── config/           # 配置管理
+│   ├── converter/        # 消息转换器
+│   └── message/          # 消息处理核心
+├── third_party/          # 第三方服务客户端
+│   └── memos/            # Memos 客户端
+├── config.yaml.example    # 配置文件示例
+└── README.md             # 项目说明
 ```
 
-### 基础机器人
+## 🛠️ 开发指南
 
-`BaseBot` 提供了所有机器人共有的功能：
+### 扩展新功能
 
-- 消息处理器（`MsgProcessor`）
-- 消息发送器（`MsgSender`）
-- 文件上传器（`FileUploader`）
-- 事件分发器（`dispatcher`）
-- 便捷方法（`ReplyText`, `ReplyRichText`, `SendText`, `AddReaction` 等）
+1. **创建功能实现**：在 `internal/features/` 下创建新的功能目录
+2. **实现 Feature 接口**：实现 `ID()`、`Name()`、`Description()`、`MatchPrefix()`、`Initialize()` 和 `HandleMessage()` 方法
+3. **注册功能**：在 `internal/features/features.go` 中注册新功能
+4. **配置功能**：在配置文件中添加功能配置
 
-### 扩展新机器人
-
-1. 在 `internal/bots/` 下创建新的机器人实现
-2. 嵌入 `BaseBot` 或实现 `Bot` 接口
-3. 在 `main.go` 中注册机器人
-
-示例：
+**示例**：创建一个问候功能
 
 ```go
-// internal/bots/my_bot.go
-package bots
+// internal/features/hello/hello.go
+package hello
 
 import (
     "context"
+    larkim "github.com/larksuite/oapi-sdk-go/v3/service/im/v1"
+    "go.uber.org/zap"
     "github.com/dfface/feishu-bot/pkg/bot"
     "github.com/dfface/feishu-bot/pkg/config"
-    "github.com/larksuite/oapi-sdk-go/v3"
-    "go.uber.org/zap"
 )
 
-type MyBot struct {
-    *bot.BaseBot
-    cfg *config.Config
+type HelloFeature struct {
+    id          string
+    name        string
+    description string
+    prefix      string
+    baseBot     *bot.BaseBot
+    logger      *zap.Logger
 }
 
-func NewMyBot(name string, client *lark.Client, cfg *config.Config, logger *zap.Logger) *MyBot {
-    b := &MyBot{
-        BaseBot: bot.NewBaseBot(name, client, logger),
-        cfg:     cfg,
+func NewHelloFeature() *HelloFeature {
+    return &HelloFeature{
+        id:          "hello",
+        name:        "问候功能",
+        description: "向用户问好",
+        prefix:      "!hello",
     }
-    
-    // 设置事件处理器
-    b.OnMessage(b.HandleMessage)
-    
-    return b
 }
 
-func (b *MyBot) HandleMessage(ctx context.Context, event *larkim.P2MessageReceiveV1) error {
-    // 处理消息
-    msg := event.Event.Message
+func (f *HelloFeature) ID() string { return f.id }
+func (f *HelloFeature) Name() string { return f.name }
+func (f *HelloFeature) Description() string { return f.description }
+func (f *HelloFeature) MatchPrefix() string { return f.prefix }
+
+func (f *HelloFeature) Initialize(featureConfig *config.FeatureConfig) error {
+    if prefix, ok := featureConfig.Config["prefix"].(string); ok {
+        f.prefix = prefix
+    }
+    return nil
+}
+
+func (f *HelloFeature) SetBaseBot(baseBot *bot.BaseBot) {
+    f.baseBot = baseBot
+    f.logger = baseBot.Logger
+}
+
+func (f *HelloFeature) HandleMessage(ctx context.Context, event *larkim.P2MessageReceiveV1) error {
     sender := event.Event.Sender
-    
-    // 回复消息
-    return b.SendText(ctx, *sender.SenderId.OpenId, "Hello from MyBot!")
+    return f.baseBot.SendText(ctx, *sender.SenderId.OpenId, "Hello! 你好！")
 }
 ```
 
-注册机器人：
+**注册功能**：
 
 ```go
-// cmd/feishu-bot/main.go
-myBot := bots.NewMyBot("mybot", feishuClient, cfg, logger)
-dispatcher = myBot.GetDispatcher()
+// internal/features/features.go
+func RegisterFeatures(registry *FeatureRegistry) {
+    registry.Register(echo.NewEchoFeature())
+    registry.Register(memos.NewMemosFeature())
+    registry.Register(hello.NewHelloFeature()) // 添加这一行
+}
 ```
 
-## 开发指南
+**配置功能**：
+
+```yaml
+features:
+  - id: "hello"
+    name: "问候功能"
+    enabled: true
+    config:
+      prefix: "!hello"
+
+bots:
+  - id: "multi-bot"
+    name: "多功能机器人"
+    enabled: true
+    features:
+      - feature_id: "echo"
+        default: true
+      - feature_id: "memos"
+      - feature_id: "hello" # 添加这一行
+```
 
 ### 本地开发
 
-1. 复制配置文件
+1. 复制配置文件：`cp config.yaml.example config.yaml`
 2. 填入开发环境配置
-3. 运行 Echo Bot 进行测试：`go run cmd/feishu-bot/main.go --echo`
+3. 运行：`go run cmd/feishu-bot/main.go --config config.yaml`
 
-### 代码规范
-
-- 遵循 Go 官方代码规范
-- 使用有意义的变量和函数名
-- 添加必要的注释
-- 编写测试用例
-
-## 部署
+## 📦 部署
 
 ### 使用 Docker
 
-创建 `Dockerfile`：
+**Dockerfile**：
 
 ```dockerfile
 FROM golang:1.25-alpine AS builder
@@ -303,7 +356,7 @@ COPY --from=builder /app/feishu-bot /usr/local/bin/
 ENTRYPOINT ["feishu-bot"]
 ```
 
-构建并运行：
+**构建并运行**：
 
 ```bash
 docker build -t feishu-bot .
@@ -315,7 +368,7 @@ docker run -d --name feishu-bot \
 
 ### 使用 Docker Compose
 
-创建 `docker-compose.yml`：
+**docker-compose.yml**：
 
 ```yaml
 version: '3'
@@ -329,13 +382,13 @@ services:
     restart: unless-stopped
 ```
 
-## 常见问题
+## ❓ 常见问题
 
 ### Q: 如何获取飞书的事件推送？
 
 A: 有两种方式：
-1. WebSocket 长连接（推荐）：无需公网 IP，设置 `use_websocket: true`
-2. Webhook：需要公网 IP，在飞书开放平台配置回调地址
+1. **WebSocket 长连接**（推荐）：无需公网 IP，设置 `use_websocket: true`
+2. **Webhook**：需要公网 IP，在飞书开放平台配置回调地址
 
 ### Q: Memos 支持哪些可见性？
 
@@ -344,11 +397,15 @@ A: 支持三种可见性：
 - `PROTECTED`：保护
 - `PUBLIC`：公开
 
-### Q: 如何添加更多机器人？
+### Q: 如何添加更多功能？
 
-A: 参考「扩展新机器人」章节，嵌入 `BaseBot` 并实现消息处理逻辑即可。
+A: 参考「扩展新功能」章节，实现 `Feature` 接口并注册功能即可。
 
-## 技术栈
+### Q: 如何配置多个机器人？
+
+A: 在配置文件的 `bots` 数组中添加多个机器人配置即可。
+
+## 🛠️ 技术栈
 
 - **语言**：Go 1.25+
 - **飞书 SDK**：[larksuite/oapi-sdk-go](https://github.com/larksuite/oapi-sdk-go)
@@ -356,17 +413,16 @@ A: 参考「扩展新机器人」章节，嵌入 `BaseBot` 并实现消息处理
 - **日志**：[uber-go/zap](https://github.com/uber-go/zap)
 - **Memos SDK**：[usememos/memos](https://github.com/usememos/memos)
 
-## 参考文档
+## 📚 参考文档
 
 - [飞书开放平台文档](https://open.feishu.cn/document)
 - [飞书事件订阅指南](https://open.feishu.cn/document/event-subscription-guide/callback-subscription/callback-overview)
 - [Memos 官方文档](https://www.usememos.com/)
-- [telegram-integration](https://github.com/usememos/telegram-integration)
 
-## 许可证
+## 📄 许可证
 
 MIT License
 
-## 贡献
+## 🤝 贡献
 
 欢迎提交 Issue 和 Pull Request！
