@@ -266,6 +266,11 @@ func (c *Client) CreateMemo(ctx context.Context, content string, visibility Visi
 		return nil, fmt.Errorf("failed to create memo: %w", err)
 	}
 
+	if resp == nil || resp.Msg == nil {
+		logger.Error("invalid response", zap.Any("resp", resp))
+		return nil, fmt.Errorf("invalid response: nil response or message")
+	}
+
 	logger.Info("Memo created successfully", zap.String("memo_name", resp.Msg.Name))
 	return resp.Msg, nil
 }
@@ -280,6 +285,11 @@ func (c *Client) GetMemo(ctx context.Context, memoName string) (*v1pb.Memo, erro
 		return nil, fmt.Errorf("failed to get memo: %w", err)
 	}
 
+	if resp == nil || resp.Msg == nil {
+		logger.Error("invalid response", zap.Any("resp", resp))
+		return nil, fmt.Errorf("invalid response: nil response or message")
+	}
+
 	return resp.Msg, nil
 }
 
@@ -291,6 +301,11 @@ func (c *Client) UpdateMemo(ctx context.Context, memo *v1pb.Memo) (*v1pb.Memo, e
 
 	if err != nil {
 		return nil, fmt.Errorf("failed to update memo: %w", err)
+	}
+
+	if resp == nil || resp.Msg == nil {
+		logger.Error("invalid response", zap.Any("resp", resp))
+		return nil, fmt.Errorf("invalid response: nil response or message")
 	}
 
 	logger.Info("Memo updated successfully", zap.String("memo_name", resp.Msg.Name))
@@ -324,6 +339,11 @@ func (c *Client) ListMemos(ctx context.Context, pageSize int32, pageToken string
 
 	if err != nil {
 		return nil, fmt.Errorf("failed to list memos: %w", err)
+	}
+
+	if resp == nil || resp.Msg == nil {
+		logger.Error("invalid response", zap.Any("resp", resp))
+		return nil, fmt.Errorf("invalid response: nil response or message")
 	}
 
 	return resp.Msg, nil
@@ -364,6 +384,11 @@ func (c *Client) UploadResourceFromBytes(ctx context.Context, data []byte, filen
 
 	if err != nil {
 		return nil, fmt.Errorf("failed to create attachment: %w", err)
+	}
+
+	if resp == nil || resp.Msg == nil {
+		logger.Error("invalid response", zap.Any("resp", resp))
+		return nil, fmt.Errorf("invalid response: nil response or message")
 	}
 
 	logger.Info("Resource uploaded successfully",
@@ -412,6 +437,11 @@ func (c *Client) GetAttachment(ctx context.Context, attachmentName string) (*v1p
 
 	if err != nil {
 		return nil, fmt.Errorf("failed to get attachment: %w", err)
+	}
+
+	if resp == nil || resp.Msg == nil {
+		logger.Error("invalid response", zap.Any("resp", resp))
+		return nil, fmt.Errorf("invalid response: nil response or message")
 	}
 
 	return resp.Msg, nil
