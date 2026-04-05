@@ -120,8 +120,8 @@ go build -o feishu-bot ./cmd/feishu-bot
 
 - 飞书企业自建应用：
   - 应用类型：机器人
-  - 应用权限：消息接收
-  - 事件订阅： `im.message.receive_v1`
+  - 应用权限：消息接收、用户进入与机器人的会话
+  - 事件订阅： `im.message.receive_v1`、`im.chat.access_event.bot_p2p_chat_entered_v1`
 - Memos 服务（仅用于 Memos 功能）
 
 无论使用哪种安装方式，都需要配置 `config.yaml` 文件：
