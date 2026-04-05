@@ -111,6 +111,28 @@ func (b *BaseBot) ReplyRichText(ctx context.Context, messageID string, builder *
 	return nil
 }
 
+// SendText 便捷方法：发送文本消息给用户
+//
+// 参数:
+//   ctx - 上下文
+//   receiveID - 接收者 ID（open_id）
+//   text - 文本内容
+//
+// 返回:
+//   error - 发送失败时返回错误
+func (b *BaseBot) SendText(ctx context.Context, receiveID string, text string) error {
+	builder := message.NewTextMessageBuilder(text)
+	_, err := b.MsgSender.SendMessage(ctx, message.ReceiveIDTypeOpenID, receiveID, builder)
+	if err != nil {
+		b.Logger.Error("Failed to send text message", zap.Error(err))
+		return err
+	}
+	b.Logger.Info("Text message sent successfully",
+		zap.String("receive_id", receiveID),
+		zap.String("text", text))
+	return nil
+}
+
 // AddReaction 便捷方法：添加表情反应
 //
 // 参数:

@@ -68,14 +68,14 @@ func (b *MemosBot) HandleMessage(ctx context.Context, event *larkim.P2MessageRec
 	msgContent, err := b.MsgProcessor.Process(ctx, msg)
 	if err != nil {
 		b.Logger.Error("Failed to process message", zap.Error(err))
-		return b.ReplyText(ctx, *sender.SenderId.OpenId, fmt.Sprintf("消息处理失败: %v", err))
+		return b.ReplyText(ctx, *msg.MessageId, fmt.Sprintf("消息处理失败: %v", err))
 	}
 
 	// 使用转换器将 MessageContent 转换为 Memos 格式
 	content, filePaths, err := converter.NewMemosConverter().ConvertMessageContent(msgContent)
 	if err != nil {
 		b.Logger.Error("Failed to convert message content", zap.Error(err))
-		return b.ReplyText(ctx, *sender.SenderId.OpenId, fmt.Sprintf("消息转换失败: %v", err))
+		return b.ReplyText(ctx, *msg.MessageId, fmt.Sprintf("消息转换失败: %v", err))
 	}
 
 	b.Logger.Info("Converted message content",
@@ -87,7 +87,7 @@ func (b *MemosBot) HandleMessage(ctx context.Context, event *larkim.P2MessageRec
 	memo, attachments, err := b.memosClient.CreateMemoWithResources(ctx, content, visibility, filePaths)
 	if err != nil {
 		b.Logger.Error("Failed to create memo with resources", zap.Error(err))
-		return b.ReplyText(ctx, *sender.SenderId.OpenId, fmt.Sprintf("保存失败: %v", err))
+		return b.ReplyText(ctx, *msg.MessageId, fmt.Sprintf("保存失败: %v", err))
 	}
 
 	// 清理本地文件
@@ -100,5 +100,5 @@ func (b *MemosBot) HandleMessage(ctx context.Context, event *larkim.P2MessageRec
 		zap.Int("attachment_count", len(attachments)))
 
 	// 回复成功
-	return b.ReplyText(ctx, *sender.SenderId.OpenId, fmt.Sprintf("已保存到 Memos"))
+	return b.ReplyText(ctx, *msg.MessageId, fmt.Sprintf("已保存到 Memos"))
 }

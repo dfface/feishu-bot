@@ -15,9 +15,11 @@ import (
 //
 // converter := NewMemosConverter()
 // content, filePaths, err := converter.ConvertMessageContent(ctx, msgContent)
-// if err != nil {
-//     // 处理错误
-// }
+//
+//	if err != nil {
+//	    // 处理错误
+//	}
+//
 // memo, attachments, err := memosClient.CreateMemoWithResources(ctx, content, memos.VisibilityPrivate, filePaths)
 type MemosConverter interface {
 	// ConvertMessageContent 将 MessageContent 转换为 Memos 内容和资源文件路径
@@ -51,12 +53,13 @@ type MemosConverter interface {
 }
 
 // memosConverter Memos 转换器实现
-type memosConverter struct {}
+type memosConverter struct{}
 
 // NewMemosConverter 创建 Memos 转换器
 //
 // 返回:
-//   MemosConverter - 初始化好的 Memos 转换器实例
+//
+//	MemosConverter - 初始化好的 Memos 转换器实例
 func NewMemosConverter() MemosConverter {
 	return &memosConverter{}
 }
@@ -162,12 +165,12 @@ func (c *memosConverter) convertElementToMarkdown(builder *strings.Builder, elem
 		}
 
 	case string(message.RichTextTagImg):
-		// 图片需要先上传，这里只添加占位符
-		builder.WriteString("![图片](图片)")
+		// 图片会上传，这里无需渲染
+		// builder.WriteString("![图片](图片)")
 
 	case string(message.RichTextTagMedia):
-		// 媒体文件需要先上传，这里只添加占位符
-		builder.WriteString(fmt.Sprintf("[文件: %s](文件)", elem.FileName))
+		// 媒体文件会上传，这里无需渲染
+		// builder.WriteString(fmt.Sprintf("[文件: %s](文件)", elem.FileName))
 
 	case string(message.RichTextTagEmotion):
 		builder.WriteString(fmt.Sprintf(":%s:", elem.EmojiType))
@@ -208,14 +211,16 @@ func (c *memosConverter) ExtractResourcePaths(msgContent *message.MessageContent
 // ConvertMessageContentToMemoRequest 便捷函数：直接转换为 Memos 创建请求
 //
 // 参数:
-//   msgContent - 消息内容
-//   visibility - Memo 可见性
+//
+//	msgContent - 消息内容
+//	visibility - Memo 可见性
 //
 // 返回:
-//   string - Memo 内容
-//   memos.Visibility - 可见性
-//   []string - 资源文件路径
-//   error - 转换失败时返回错误
+//
+//	string - Memo 内容
+//	memos.Visibility - 可见性
+//	[]string - 资源文件路径
+//	error - 转换失败时返回错误
 func ConvertMessageContentToMemoRequest(msgContent *message.MessageContent, visibility memos.Visibility) (string, memos.Visibility, []string, error) {
 	converter := NewMemosConverter()
 	content, filePaths, err := converter.ConvertMessageContent(msgContent)

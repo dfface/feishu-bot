@@ -4,10 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"mime"
 	"os"
 	"path/filepath"
 	"strings"
 
+	"github.com/google/uuid"
 	lark "github.com/larksuite/oapi-sdk-go/v3"
 	larkim "github.com/larksuite/oapi-sdk-go/v3/service/im/v1"
 	"go.uber.org/zap"
@@ -623,8 +625,23 @@ func (p *Processor) downloadResource(ctx context.Context, resource *Resource) er
 		return fmt.Errorf("failed to get message resource: code=%d, msg=%s", resp.Code, resp.Msg)
 	}
 
-	// 构建本地路径
-	localPath := filepath.Join(p.tempDir, resp.FileName)
+	// 构建唯一的本地路径，避免文件名冲突
+	fileName := resp.FileName
+	if fileName == "" {
+		// 如果没有文件名，使用 UUID 生成
+		fileName = uuid.New().String()
+		// 从 Content-Type 头获取 MIME 类型来确定扩展名
+		contentType := resp.Header.Get("Content-Type")
+		ext := p.getExtensionFromContentType(contentType, resource.Type)
+		fileName += ext
+	} else {
+		// 如果有文件名，还是添加 UUID 前缀防止冲突
+		ext := filepath.Ext(fileName)
+		baseName := strings.TrimSuffix(fileName, ext)
+		fileName = fmt.Sprintf("%s_%s%s", baseName, uuid.New().String(), ext)
+	}
+
+	localPath := filepath.Join(p.tempDir, fileName)
 
 	// 使用 SDK 提供的方法保存文件
 	if err := resp.WriteFile(localPath); err != nil {
@@ -634,6 +651,8 @@ func (p *Processor) downloadResource(ctx context.Context, resource *Resource) er
 	// 更新资源信息
 	resource.LocalPath = localPath
 	resource.Downloaded = true
+	// 也更新 FileName 为我们生成的文件名
+	resource.FileName = fileName
 
 	p.logger.Info("Resource downloaded",
 		zap.String("type", string(resource.Type)),
@@ -641,6 +660,36 @@ func (p *Processor) downloadResource(ctx context.Context, resource *Resource) er
 		zap.String("file_key", fileKey),
 		zap.String("path", localPath))
 	return nil
+}
+
+// getExtensionFromContentType 根据 MIME 类型获取文件扩展名
+// 使用标准库 mime 来处理，更全面可靠
+func (p *Processor) getExtensionFromContentType(contentType string, resourceType ResourceType) string {
+	// 首先尝试从标准库获取扩展名
+	if contentType != "" {
+		// 解析 Content-Type，去除参数部分（如 "image/jpeg; charset=utf-8"）
+		mediaType, _, err := mime.ParseMediaType(contentType)
+		if err == nil {
+			extensions, err := mime.ExtensionsByType(mediaType)
+			if err == nil && len(extensions) > 0 {
+				return extensions[0]
+			}
+		}
+	}
+
+	// 如果标准库没有找到，根据资源类型返回默认扩展名
+	switch resourceType {
+	case ResourceTypeImage:
+		return ".jpg"
+	case ResourceTypeAudio:
+		return ".mp3"
+	case ResourceTypeMedia:
+		return ".mp4"
+	case ResourceTypeFile:
+		return ".bin"
+	default:
+		return ".bin"
+	}
 }
 
 // parseSticker 解析表情包消息
