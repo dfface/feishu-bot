@@ -7,6 +7,7 @@ package features
 
 import (
 	"context"
+	"fmt"
 	"os"
 
 	"go.uber.org/zap"
@@ -173,7 +174,7 @@ func (f *MemosFeature) SetMemosClient(client *memos.Client) {
 // 返回值：
 // - error：处理过程中的错误，成功则返回 nil
 func (f *MemosFeature) HandleMessage(ctx context.Context, msgContent *message.MessageContent) error {
-	logger.Info("Processing memos message",
+	logger.Info("[MemosFeature] Processing memos message",
 		zap.String("message_id", msgContent.ID),
 		zap.String("sender_id", msgContent.SenderID),
 	)
@@ -181,7 +182,7 @@ func (f *MemosFeature) HandleMessage(ctx context.Context, msgContent *message.Me
 	// 使用转换器转换消息
 	content, filePaths, err := converter.NewMemosConverter().ConvertMessageContent(msgContent)
 	if err != nil {
-		logger.Error("Failed to convert message", zap.Error(err))
+		logger.Error("[MemosFeature] Failed to convert message", zap.Error(err))
 		return f.baseBot.ReplyText(ctx, msgContent.ID, "消息转换失败")
 	}
 
@@ -189,7 +190,7 @@ func (f *MemosFeature) HandleMessage(ctx context.Context, msgContent *message.Me
 	visibility := memos.Visibility(f.memosConfig.DefaultVisibility)
 	memo, attachments, err := f.memosClient.CreateMemoWithResources(ctx, content, visibility, filePaths)
 	if err != nil {
-		logger.Error("Failed to create memo", zap.Error(err))
+		logger.Error("[MemosFeature] Failed to create memo", zap.Error(err))
 		return f.baseBot.ReplyText(ctx, msgContent.ID, "保存失败")
 	}
 
@@ -198,11 +199,13 @@ func (f *MemosFeature) HandleMessage(ctx context.Context, msgContent *message.Me
 		_ = os.Remove(path)
 	}
 
-	logger.Info("Memo created",
+	logger.Info("[MemosFeature] Memo created",
 		zap.String("memo_name", memo.Name),
 		zap.Int("attachments", len(attachments)),
 	)
 
 	// 回复成功
-	return f.baseBot.ReplyText(ctx, msgContent.ID, "已保存到 Memos")
+	richText := message.NewRichTextMessageBuilder()
+	richText.AddMd(fmt.Sprintf("已保存到 [Memos](%s/%s)", f.memosConfig.BaseURL, memo.Name))
+	return f.baseBot.ReplyRichText(ctx, msgContent.ID, richText)
 }
