@@ -113,21 +113,34 @@ func (f *BotFactory) createBot(botConfig config.BotConfig) (bot.Bot, error) {
 
 	// 注册功能
 	for _, featureMapping := range botConfig.Features {
-		feature := f.featureRegistry.Get(featureMapping.FeatureID)
+		// 首先根据用户自定义的 ID 查找 FeatureConfig
+		var featureConfig *config.FeatureConfig
+		for i, cfg := range f.config.Features {
+			if cfg.ID == featureMapping.FeatureID {
+				featureConfig = &f.config.Features[i]
+				break
+			}
+		}
+
+		// 如果找不到 FeatureConfig，跳过
+		if featureConfig == nil {
+			logger.Warn("Feature config not found", zap.String("feature_id", featureMapping.FeatureID))
+			continue
+		}
+
+		// 然后根据 InternalID 查找功能实例
+		feature := f.featureRegistry.Get(featureConfig.InternalID)
 		if feature == nil {
-			logger.Warn("Feature not found", zap.String("feature_id", featureMapping.FeatureID))
+			logger.Warn("Feature not found", zap.String("internal_id", featureConfig.InternalID))
 			continue
 		}
 
 		// 初始化功能
-		for _, featureConfig := range f.config.Features {
-			if featureConfig.ID == featureMapping.FeatureID && featureConfig.Enabled {
-				if err := feature.Initialize(&featureConfig); err != nil {
-					logger.Error("Failed to initialize feature",
-						zap.String("feature_id", featureMapping.FeatureID),
-						zap.Error(err))
-				}
-				break
+		if featureConfig.Enabled {
+			if err := feature.Initialize(featureConfig); err != nil {
+				logger.Error("Failed to initialize feature",
+					zap.String("internal_id", featureConfig.InternalID),
+					zap.Error(err))
 			}
 		}
 

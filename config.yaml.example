@@ -8,14 +8,16 @@ log:
 
 # 功能配置
 features:
-  - id: "echo"                    # 必填: 功能唯一标识
+  - id: "echo_you_defined"                    # 必填: 功能唯一标识
+    internal_id: "echo"  # 内部功能 ID，与功能实现中代码写死的 ID 一致
+  
     # name: "回声功能"            # 可选: 功能名称，不填使用默认值
     # enabled: true               # 可选: 是否启用，默认 true
     # description: "原样回复消息" # 可选: 功能描述，不填使用默认值
     config:
       prefix: "!echo"             # 可选: 命令前缀
-
-  - id: "memos"
+  - id: "memos_you_defined"
+    internal_id: "memos"  # 内部功能 ID，与功能实现中代码写死的 ID 一致
     config:
       prefix: "!memos"
       memos:
@@ -35,9 +37,7 @@ bots:
       # encrypt_key: ""                  # 可选: 回调数据加密密钥
       # use_websocket: true              # 可选: 是否使用 WebSocket，默认 true
     features:
-      - feature_id: "echo"
+      - feature_id: "echo_you_defined"
         default: true         # 可选: 是否为默认功能，默认 false
-      - feature_id: "memos"
+      - feature_id: "memos_you_defined"
         # default: false
-    # config:                 # 可选: 机器人自定义配置
-    #   welcome_message: "欢迎使用多功能机器人！"

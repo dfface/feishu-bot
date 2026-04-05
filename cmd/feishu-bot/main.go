@@ -186,7 +186,8 @@ func loadConfig(configPath string) (*config.Config, error) {
 	if len(cfg.Features) == 0 {
 		cfg.Features = []config.FeatureConfig{
 			{
-				ID:          "echo",
+				ID:          "echo_you_defined",
+				InternalID:  "echo",
 				Name:        "回声功能",
 				Enabled:     true,
 				Description: "原样回复消息",
@@ -195,7 +196,8 @@ func loadConfig(configPath string) (*config.Config, error) {
 				},
 			},
 			{
-				ID:          "memos",
+				ID:          "memos_you_defined",
+				InternalID:  "memos",
 				Name:        "Memos 保存",
 				Enabled:     true,
 				Description: "保存消息到 Memos",
@@ -220,15 +222,12 @@ func loadConfig(configPath string) (*config.Config, error) {
 				},
 				Features: []config.FeatureMapping{
 					{
-						FeatureID: "echo",
+						FeatureID: "echo_you_defined",
 						Default:   true,
 					},
 					{
-						FeatureID: "memos",
+						FeatureID: "memos_you_defined",
 					},
-				},
-				Config: map[string]interface{}{
-					"welcome_message": "欢迎使用多功能机器人！",
 				},
 			},
 		}

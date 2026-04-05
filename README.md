@@ -404,21 +404,23 @@ func RegisterFeatures(registry *FeatureRegistry) {
 
 ```yaml
 features:
-  - id: "hello"
-    name: "问候功能"
-    enabled: true
+  - id: "hello_you_defined"
+    internal_id: "hello"  # 内部功能 ID，与功能实现中代码写死的 ID 一致
     config:
       prefix: "!hello"
+  - id: "echo_you_defined"
+    internal_id: "echo"  # 内部功能 ID，与功能实现中代码写死的 ID 一致
+    config:
+      prefix: "!echo"
 
 bots:
   - id: "multi-bot"
     name: "多功能机器人"
     enabled: true
     features:
-      - feature_id: "echo"
+      - feature_id: "echo_you_defined"
         default: true
-      - feature_id: "memos"
-      - feature_id: "hello" # 添加这一行
+      - feature_id: "hello_you_defined" # 添加这一行
 ```
 
 ### 本地开发

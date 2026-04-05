@@ -33,10 +33,11 @@ type Config struct {
 // 每个功能都有自己的配置，包括 ID、名称、是否启用和自定义配置。
 // 自定义配置通过 map[string]interface{} 传递，便于扩展。
 type FeatureConfig struct {
-	ID          string                 `mapstructure:"id"`          // 功能唯一标识符
+	ID          string                 `mapstructure:"id"`          // 功能唯一标识符（用户在配置文件中使用）
+	InternalID  string                 `mapstructure:"internal_id"` // 功能内部ID（代码中写死的）
 	Name        string                 `mapstructure:"name"`        // 功能名称（可选，使用功能默认值）
-	Enabled     bool                   `mapstructure:"enabled"`     // 是否启用（可选，默认为 true）
 	Description string                 `mapstructure:"description"` // 功能描述（可选，使用功能默认值）
+	Enabled     bool                   `mapstructure:"enabled"`     // 是否启用（可选，默认为 true）
 	Config      map[string]interface{} `mapstructure:"config"`      // 自定义配置（可选，使用功能默认值）
 	// 所有功能配置都通过 Config map 传递，便于扩展
 }
@@ -50,9 +51,9 @@ type BotConfig struct {
 	ID       string                 `mapstructure:"id"`       // 机器人唯一标识符
 	Name     string                 `mapstructure:"name"`     // 机器人名称
 	Enabled  bool                   `mapstructure:"enabled"`  // 是否启用
+	Feishu   FeishuConfig           `mapstructure:"feishu"`   // 飞书配置
 	Features []FeatureMapping       `mapstructure:"features"` // 功能映射列表
 	Config   map[string]interface{} `mapstructure:"config"`   // 自定义配置
-	Feishu   FeishuConfig           `mapstructure:"feishu"`   // 飞书配置
 }
 
 // FeatureMapping 功能映射配置

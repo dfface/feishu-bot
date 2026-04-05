@@ -16,6 +16,7 @@ import (
 	"github.com/dfface/feishu-bot/internal/bot"
 	"github.com/dfface/feishu-bot/internal/config"
 	"github.com/dfface/feishu-bot/internal/converter"
+	"github.com/dfface/feishu-bot/internal/utils"
 	memos "github.com/dfface/feishu-bot/third_party/memos"
 )
 
@@ -104,6 +105,10 @@ func (f *MemosFeature) MatchPrefix() string {
 // 返回值：
 // - error：初始化过程中的错误，成功则返回 nil
 func (f *MemosFeature) Initialize(featureConfig *config.FeatureConfig) error {
+	// 覆盖写死的 Name、Description
+	f.name = featureConfig.Name
+	f.description = featureConfig.Description
+
 	if prefix, ok := featureConfig.Config["prefix"].(string); ok {
 		f.prefix = prefix
 	}
@@ -111,9 +116,9 @@ func (f *MemosFeature) Initialize(featureConfig *config.FeatureConfig) error {
 	// 从 Config map 中读取 Memos 配置
 	if memosConfigMap, ok := featureConfig.Config["memos"].(map[string]interface{}); ok {
 		f.memosConfig = &config.MemosConfig{
-			BaseURL:           getStringValue(memosConfigMap, "base_url", ""),
-			AccessToken:       getStringValue(memosConfigMap, "access_token", ""),
-			DefaultVisibility: getStringValue(memosConfigMap, "default_visibility", "PRIVATE"),
+			BaseURL:           utils.GetStringValue(memosConfigMap, "base_url", ""),
+			AccessToken:       utils.GetStringValue(memosConfigMap, "access_token", ""),
+			DefaultVisibility: utils.GetStringValue(memosConfigMap, "default_visibility", "PRIVATE"),
 		}
 
 		// 创建 Memos 客户端
@@ -126,25 +131,6 @@ func (f *MemosFeature) Initialize(featureConfig *config.FeatureConfig) error {
 	}
 
 	return nil
-}
-
-// getStringValue 从 map 中获取字符串值
-//
-// 此辅助函数用于从 map[string]interface{} 中安全地获取字符串值。
-// 如果键不存在或值不是字符串类型，返回默认值。
-//
-// 参数：
-// - m：配置 map
-// - key：键名
-// - defaultValue：默认值
-//
-// 返回值：
-// - string：获取到的字符串值或默认值
-func getStringValue(m map[string]interface{}, key, defaultValue string) string {
-	if value, ok := m[key].(string); ok {
-		return value
-	}
-	return defaultValue
 }
 
 // SetBaseBot 设置基础机器人

@@ -96,6 +96,10 @@ func (f *EchoFeature) MatchPrefix() string {
 // 返回值：
 // - error：初始化过程中的错误，成功则返回 nil
 func (f *EchoFeature) Initialize(featureConfig *config.FeatureConfig) error {
+	// 覆盖写死的 Name、Description
+	f.name = featureConfig.Name
+	f.description = featureConfig.Description
+
 	if prefix, ok := featureConfig.Config["prefix"].(string); ok {
 		f.prefix = prefix
 	}
