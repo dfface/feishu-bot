@@ -1,3 +1,10 @@
+// bots 机器人工厂实现包
+//
+// 此包实现了机器人工厂，负责根据配置创建和初始化机器人。
+// 主要包含：
+// 1. BotFactory 结构体：机器人工厂
+// 2. CreateBots 方法：创建机器人
+// 3. createBot 方法：创建单个机器人
 package bots
 
 import (
@@ -12,13 +19,29 @@ import (
 )
 
 // BotFactory 机器人工厂
+// 负责根据配置创建和初始化机器人
+//
+// 工厂模式是创建对象的经典设计模式，它封装了对象的创建逻辑。
+// BotFactory 负责读取配置、创建机器人实例、注册功能和设置消息处理器。
 type BotFactory struct {
-	config          *config.Config
-	logger          *zap.Logger
-	featureRegistry *features.FeatureRegistry
+	config          *config.Config            // 应用配置
+	logger          *zap.Logger               // 日志记录器
+	featureRegistry *features.FeatureRegistry // 功能注册中心
 }
 
 // NewBotFactory 创建机器人工厂
+//
+// 此函数创建一个新的机器人工厂实例，并初始化功能注册中心。
+// 主要完成以下工作：
+// 1. 创建功能注册中心
+// 2. 注册所有内置功能
+//
+// 参数：
+// - cfg：应用配置
+// - logger：日志记录器
+//
+// 返回值：
+// - *BotFactory：创建的机器人工厂实例
 func NewBotFactory(cfg *config.Config, logger *zap.Logger) *BotFactory {
 	registry := features.NewFeatureRegistry()
 	features.RegisterFeatures(registry)
@@ -31,6 +54,17 @@ func NewBotFactory(cfg *config.Config, logger *zap.Logger) *BotFactory {
 }
 
 // CreateBots 根据配置创建机器人
+//
+// 此方法遍历配置中的所有机器人，创建启用的机器人实例。
+// 主要完成以下工作：
+// 1. 遍历配置中的机器人列表
+// 2. 跳过未启用的机器人
+// 3. 创建机器人实例
+// 4. 收集创建成功的机器人
+//
+// 返回值：
+// - []bot.Bot：创建的机器人列表
+// - error：创建过程中的错误，成功则返回 nil
 func (f *BotFactory) CreateBots() ([]bot.Bot, error) {
 	var createdBots []bot.Bot
 
@@ -54,6 +88,22 @@ func (f *BotFactory) CreateBots() ([]bot.Bot, error) {
 }
 
 // createBot 创建机器人
+//
+// 此方法创建单个机器人实例，并完成初始化。
+// 主要完成以下工作：
+// 1. 验证机器人配置（至少有一个功能）
+// 2. 创建飞书客户端
+// 3. 创建机器人实例
+// 4. 注册和初始化功能
+// 5. 设置默认功能
+// 6. 设置消息处理器
+//
+// 参数：
+// - botConfig：机器人配置
+//
+// 返回值：
+// - bot.Bot：创建的机器人实例
+// - error：创建过程中的错误，成功则返回 nil
 func (f *BotFactory) createBot(botConfig config.BotConfig) (bot.Bot, error) {
 	if len(botConfig.Features) == 0 {
 		return nil, fmt.Errorf("bot must have at least one feature")

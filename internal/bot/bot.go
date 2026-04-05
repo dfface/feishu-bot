@@ -1,3 +1,4 @@
+// bot 包主要用于解决循环依赖问题 features 要依赖 bot
 package bot
 
 import (

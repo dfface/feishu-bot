@@ -1,3 +1,8 @@
+// features Memos 功能实现包
+//
+// 此包实现了 Memos 功能，用于将飞书消息保存到 Memos 笔记系统。
+// Memos 是一个开源的笔记系统，支持快速记录和组织笔记。
+// 此功能允许用户通过飞书机器人将消息保存到 Memos，实现跨平台笔记记录。
 package features
 
 import (
@@ -15,19 +20,32 @@ import (
 )
 
 // MemosFeature Memos 功能
+// 实现 Feature 接口，提供将飞书消息保存到 Memos 的能力
+//
+// 此功能支持：
+// - 文本消息保存
+// - 富文本消息转换
+// - 图片和文件附件上传
+// - 自定义可见性设置
 type MemosFeature struct {
-	id          string
-	name        string
-	description string
-	prefix      string
-	baseBot     *bot.BaseBot
-	logger      *zap.Logger
-	memosClient *memos.Client
-	cfg         *config.Config
-	memosConfig *config.MemosConfig
+	id          string              // 功能唯一标识符
+	name        string              // 功能名称
+	description string              // 功能描述
+	prefix      string              // 匹配前缀，用于识别命令
+	baseBot     *bot.BaseBot        // 基础机器人实例，提供消息处理和发送能力
+	logger      *zap.Logger         // 日志记录器
+	memosClient *memos.Client       // Memos API 客户端
+	cfg         *config.Config      // 全局配置
+	memosConfig *config.MemosConfig // Memos 特定配置
 }
 
 // NewMemosFeature 创建 Memos 功能
+//
+// 此函数创建一个新的 Memos 功能实例，设置默认的 ID、名称、描述和前缀。
+// 实际的配置和客户端初始化在 Initialize 方法中完成。
+//
+// 返回值：
+// - *MemosFeature：创建的 Memos 功能实例
 func NewMemosFeature() *MemosFeature {
 	return &MemosFeature{
 		id:          "memos",
@@ -38,26 +56,53 @@ func NewMemosFeature() *MemosFeature {
 }
 
 // ID 返回功能ID
+//
+// 返回值：
+// - string：功能的唯一标识符 "memos"
 func (f *MemosFeature) ID() string {
 	return f.id
 }
 
 // Name 返回功能名称
+//
+// 返回值：
+// - string：功能的名称 "Memos 保存"
 func (f *MemosFeature) Name() string {
 	return f.name
 }
 
 // Description 返回功能描述
+//
+// 返回值：
+// - string：功能的描述 "保存消息到 Memos"
 func (f *MemosFeature) Description() string {
 	return f.description
 }
 
 // MatchPrefix 返回匹配前缀
+//
+// 匹配前缀用于识别消息是否应该由此功能处理。
+// 当消息文本以 "!memos" 开头时，该功能将被调用。
+//
+// 返回值：
+// - string：匹配前缀 "!memos"
 func (f *MemosFeature) MatchPrefix() string {
 	return f.prefix
 }
 
 // Initialize 初始化功能
+//
+// 此方法在功能注册时被调用，用于初始化功能所需的配置和资源。
+// 主要完成以下工作：
+// 1. 从配置中读取自定义前缀（如果有）
+// 2. 从配置中读取 Memos 连接信息（BaseURL、AccessToken、DefaultVisibility）
+// 3. 创建 Memos API 客户端
+//
+// 参数：
+// - featureConfig：功能配置，包含功能所需的配置信息
+//
+// 返回值：
+// - error：初始化过程中的错误，成功则返回 nil
 func (f *MemosFeature) Initialize(featureConfig *config.FeatureConfig) error {
 	if prefix, ok := featureConfig.Config["prefix"].(string); ok {
 		f.prefix = prefix
@@ -85,6 +130,17 @@ func (f *MemosFeature) Initialize(featureConfig *config.FeatureConfig) error {
 }
 
 // getStringValue 从 map 中获取字符串值
+//
+// 此辅助函数用于从 map[string]interface{} 中安全地获取字符串值。
+// 如果键不存在或值不是字符串类型，返回默认值。
+//
+// 参数：
+// - m：配置 map
+// - key：键名
+// - defaultValue：默认值
+//
+// 返回值：
+// - string：获取到的字符串值或默认值
 func getStringValue(m map[string]interface{}, key, defaultValue string) string {
 	if value, ok := m[key].(string); ok {
 		return value
@@ -93,27 +149,65 @@ func getStringValue(m map[string]interface{}, key, defaultValue string) string {
 }
 
 // SetBaseBot 设置基础机器人
+//
+// 此方法是 Feature 接口的必需方法，用于为功能提供访问机器人基础功能的能力。
+// 功能通过 BaseBot 可以访问消息处理器、消息发送器、文件上传器等组件。
+//
+// 参数：
+// - baseBot：基础机器人实例
 func (f *MemosFeature) SetBaseBot(baseBot *bot.BaseBot) {
 	f.baseBot = baseBot
 	f.logger = baseBot.Logger
 }
 
 // SetMemosClient 设置 Memos 客户端
+//
+// 此方法用于设置 Memos API 客户端，主要用于测试和依赖注入。
+//
+// 参数：
+// - client：Memos API 客户端实例
 func (f *MemosFeature) SetMemosClient(client *memos.Client) {
 	f.memosClient = client
 }
 
 // SetConfig 设置配置
+//
+// 此方法用于设置全局配置，主要用于测试和依赖注入。
+//
+// 参数：
+// - cfg：全局配置实例
 func (f *MemosFeature) SetConfig(cfg *config.Config) {
 	f.cfg = cfg
 }
 
 // SetMemosConfig 设置 Memos 配置
+//
+// 此方法用于设置 Memos 特定配置，主要用于测试和依赖注入。
+//
+// 参数：
+// - memosConfig：Memos 配置实例
 func (f *MemosFeature) SetMemosConfig(memosConfig *config.MemosConfig) {
 	f.memosConfig = memosConfig
 }
 
 // HandleMessage 处理消息
+//
+// 此方法是功能的核心，负责处理接收到的消息。
+// 主要完成以下工作：
+// 1. 解析消息内容
+// 2. 移除命令前缀
+// 3. 转换消息格式（支持文本、富文本、图片、文件等）
+// 4. 上传附件到 Memos
+// 5. 创建 Memo
+// 6. 清理临时文件
+// 7. 回复用户
+//
+// 参数：
+// - ctx：上下文，用于控制请求的生命周期
+// - event：消息事件，包含消息内容和发送者信息
+//
+// 返回值：
+// - error：处理过程中的错误，成功则返回 nil
 func (f *MemosFeature) HandleMessage(ctx context.Context, event *larkim.P2MessageReceiveV1) error {
 	msg := event.Event.Message
 	sender := event.Event.Sender

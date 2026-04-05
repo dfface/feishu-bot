@@ -326,7 +326,7 @@ feishu-bot/
 ### 扩展新功能
 
 1. **创建功能实现**：在 `internal/features/` 下创建新的功能目录
-2. **实现 Feature 接口**：实现 `ID()`、`Name()`、`Description()`、`MatchPrefix()`、`Initialize()` 和 `HandleMessage()` 方法
+2. **实现 Feature 接口**：实现 `ID()`、`Name()`、`Description()`、`MatchPrefix()`、`Initialize()`、`SetBaseBot()` 和 `HandleMessage()` 方法
 3. **注册功能**：在 `internal/features/features.go` 中注册新功能
 4. **配置功能**：在配置文件中添加功能配置
 
@@ -366,6 +366,10 @@ func (f *HelloFeature) ID() string { return f.id }
 func (f *HelloFeature) Name() string { return f.name }
 func (f *HelloFeature) Description() string { return f.description }
 func (f *HelloFeature) MatchPrefix() string { return f.prefix }
+func (f *HelloFeature) SetBaseBot(baseBot *bot.BaseBot) {
+    f.baseBot = baseBot
+    f.logger = baseBot.Logger
+}
 
 func (f *HelloFeature) Initialize(featureConfig *config.FeatureConfig) error {
     if prefix, ok := featureConfig.Config["prefix"].(string); ok {
