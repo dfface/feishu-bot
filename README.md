@@ -8,8 +8,10 @@
 - 🔌 **插件式机器人**：通过接口实现，轻松添加新的机器人
 - 📱 **飞书长连接**：支持 WebSocket 长连接模式，无需公网 IP
 - 📝 **Memos 集成**：内置 Memos 机器人，支持文本、图片、视频等附件
+- 🔄 **Echo Bot**：内置回声机器人，用于测试和调试
 - ⚙️ **灵活配置**：支持 YAML 配置文件和环境变量
 - 📊 **结构化日志**：使用 Zap 日志库，支持 JSON 和 Console 格式
+- 📋 **消息转换**：内置消息转换器，支持将飞书消息转换为 Memos 格式
 
 ## 项目结构
 
@@ -20,12 +22,23 @@ feishu-bot/
 │       └── main.go
 ├── internal/
 │   └── bots/                 # 机器人实现
+│       ├── echo_bot.go       # 回声机器人（用于测试）
 │       └── memos_bot.go      # Memos 机器人
 ├── pkg/
 │   ├── bot/                  # 机器人基础框架
 │   │   └── bot.go
 │   ├── config/               # 配置管理
 │   │   └── config.go
+│   ├── converter/            # 消息转换器
+│   │   └── memos_converter.go  # Memos 消息转换器
+│   └── message/              # 消息处理核心
+│       ├── builder.go        # 消息构建器
+│       ├── const.go          # 常量定义
+│       ├── processor.go      # 消息处理器
+│       ├── sender.go         # 消息发送器
+│       ├── types.go          # 类型定义
+│       └── uploader.go       # 文件上传器
+├── third_party/              # 第三方服务客户端
 │   └── memos/                # Memos 客户端
 │       └── client.go
 ├── config.yaml.example       # 配置文件示例
@@ -39,9 +52,9 @@ feishu-bot/
 
 ### 前置要求
 
-- Go 1.21+
+- Go 1.25+
 - 飞书企业自建应用
-- Memos 服务
+- Memos 服务（仅用于 Memos 机器人）
 
 ### 1. 克隆项目
 
@@ -96,7 +109,7 @@ log:
    - 请求地址：`https://your-domain.com/webhook/event`
    - 订阅事件：接收消息 `im.message.receive_v1`
 
-### 5. 获取 Memos 访问令牌
+### 5. 获取 Memos 访问令牌（仅用于 Memos 机器人）
 
 1. 登录你的 Memos 服务
 2. 在设置中创建访问令牌
@@ -104,14 +117,16 @@ log:
 
 ### 6. 运行
 
-```bash
-go run cmd/feishu-bot/main.go
-```
-
-或者使用配置文件：
+#### 运行 Memos 机器人
 
 ```bash
 go run cmd/feishu-bot/main.go --config config.yaml
+```
+
+#### 运行 Echo 机器人（用于测试）
+
+```bash
+go run cmd/feishu-bot/main.go --echo --config config.yaml
 ```
 
 ## 配置说明
@@ -136,28 +151,46 @@ export FEISHU_BOT_MEMOS_ACCESS_TOKEN="your_token"
 | feishu.verification_token | 验证令牌 | 否 |
 | feishu.encrypt_key | 加密密钥 | 否 |
 | feishu.use_websocket | 使用 WebSocket | 否 |
-| memos.base_url | Memos 服务地址 | 是 |
-| memos.access_token | Memos 访问令牌 | 是 |
+| memos.base_url | Memos 服务地址 | 是（仅 Memos 机器人） |
+| memos.access_token | Memos 访问令牌 | 是（仅 Memos 机器人） |
 | memos.default_visibility | 默认可见性 | 否 |
 | server.port | 监听端口 | 否 |
 | log.level | 日志级别 | 否 |
 | log.format | 日志格式 | 否 |
 
-## Memos 机器人使用
+## 机器人使用
 
-### 功能
+### Memos 机器人
+
+#### 功能
 
 - ✅ 文本消息：直接保存为 Memo
-- ✅ 图片：上传到 Memos 并嵌入
-- ✅ 文件：上传到 Memos 并链接
-- ✅ 音频：上传到 Memos
-- ✅ 视频：上传到 Memos
+- ✅ 富文本消息：转换为 Markdown 格式保存
+- ✅ 图片：下载并上传到 Memos
+- ✅ 文件：下载并上传到 Memos
+- ✅ 音频：下载并上传到 Memos
+- ✅ 视频：下载并上传到 Memos
 
-### 使用方法
+#### 使用方法
 
 1. 在飞书中添加机器人为好友
 2. 直接发送消息给机器人
 3. 消息会自动保存到你的 Memos
+
+### Echo 机器人
+
+#### 功能
+
+- ✅ 文本消息：原样回复并添加「已收到」
+- ✅ 富文本消息：原样回复并添加「已收到」
+- ✅ 图片：重新上传并回复
+- ✅ 表情反应：自动添加相同的表情反应
+
+#### 使用方法
+
+1. 运行 `go run cmd/feishu-bot/main.go --echo`
+2. 在飞书中发送消息给机器人
+3. 机器人会原样回复消息
 
 ## 架构设计
 
@@ -167,15 +200,24 @@ export FEISHU_BOT_MEMOS_ACCESS_TOKEN="your_token"
 // Bot 机器人接口
 type Bot interface {
     Name() string
-    HandleMessage(ctx context.Context, event *P2MessageReceiveV1) error
-    HandleCardAction(ctx context.Context, event *CardActionEvent) error
+    GetDispatcher() *dispatcher.EventDispatcher
 }
 ```
+
+### 基础机器人
+
+`BaseBot` 提供了所有机器人共有的功能：
+
+- 消息处理器（`MsgProcessor`）
+- 消息发送器（`MsgSender`）
+- 文件上传器（`FileUploader`）
+- 事件分发器（`dispatcher`）
+- 便捷方法（`ReplyText`, `ReplyRichText`, `SendText`, `AddReaction` 等）
 
 ### 扩展新机器人
 
 1. 在 `internal/bots/` 下创建新的机器人实现
-2. 实现 `Bot` 接口
+2. 嵌入 `BaseBot` 或实现 `Bot` 接口
 3. 在 `main.go` 中注册机器人
 
 示例：
@@ -187,28 +229,35 @@ package bots
 import (
     "context"
     "github.com/dfface/feishu-bot/pkg/bot"
+    "github.com/dfface/feishu-bot/pkg/config"
+    "github.com/larksuite/oapi-sdk-go/v3"
+    "go.uber.org/zap"
 )
 
 type MyBot struct {
-    name string
+    *bot.BaseBot
+    cfg *config.Config
 }
 
-func NewMyBot() *MyBot {
-    return &MyBot{name: "mybot"}
+func NewMyBot(name string, client *lark.Client, cfg *config.Config, logger *zap.Logger) *MyBot {
+    b := &MyBot{
+        BaseBot: bot.NewBaseBot(name, client, logger),
+        cfg:     cfg,
+    }
+    
+    // 设置事件处理器
+    b.OnMessage(b.HandleMessage)
+    
+    return b
 }
 
-func (b *MyBot) Name() string {
-    return b.name
-}
-
-func (b *MyBot) HandleMessage(ctx context.Context, event *bot.P2MessageReceiveV1) error {
+func (b *MyBot) HandleMessage(ctx context.Context, event *larkim.P2MessageReceiveV1) error {
     // 处理消息
-    return nil
-}
-
-func (b *MyBot) HandleCardAction(ctx context.Context, event *bot.CardActionEvent) error {
-    // 处理卡片交互
-    return nil
+    msg := event.Event.Message
+    sender := event.Event.Sender
+    
+    // 回复消息
+    return b.SendText(ctx, *sender.SenderId.OpenId, "Hello from MyBot!")
 }
 ```
 
@@ -216,8 +265,8 @@ func (b *MyBot) HandleCardAction(ctx context.Context, event *bot.CardActionEvent
 
 ```go
 // cmd/feishu-bot/main.go
-myBot := bots.NewMyBot()
-botManager.RegisterBot(myBot)
+myBot := bots.NewMyBot("mybot", feishuClient, cfg, logger)
+dispatcher = myBot.GetDispatcher()
 ```
 
 ## 开发指南
@@ -226,7 +275,7 @@ botManager.RegisterBot(myBot)
 
 1. 复制配置文件
 2. 填入开发环境配置
-3. 运行 `go run cmd/feishu-bot/main.go`
+3. 运行 Echo Bot 进行测试：`go run cmd/feishu-bot/main.go --echo`
 
 ### 代码规范
 
@@ -242,7 +291,7 @@ botManager.RegisterBot(myBot)
 创建 `Dockerfile`：
 
 ```dockerfile
-FROM golang:1.21-alpine AS builder
+FROM golang:1.25-alpine AS builder
 
 WORKDIR /app
 COPY . .
@@ -297,14 +346,15 @@ A: 支持三种可见性：
 
 ### Q: 如何添加更多机器人？
 
-A: 参考「扩展新机器人」章节，实现 `Bot` 接口并注册即可。
+A: 参考「扩展新机器人」章节，嵌入 `BaseBot` 并实现消息处理逻辑即可。
 
 ## 技术栈
 
-- **语言**：Go 1.21+
+- **语言**：Go 1.25+
 - **飞书 SDK**：[larksuite/oapi-sdk-go](https://github.com/larksuite/oapi-sdk-go)
 - **配置管理**：[spf13/viper](https://github.com/spf13/viper)
 - **日志**：[uber-go/zap](https://github.com/uber-go/zap)
+- **Memos SDK**：[usememos/memos](https://github.com/usememos/memos)
 
 ## 参考文档
 
