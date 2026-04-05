@@ -118,7 +118,10 @@ go build -o feishu-bot ./cmd/feishu-bot
 
 #### 前置要求
 
-- 飞书企业自建应用
+- 飞书企业自建应用：
+  - 应用类型：机器人
+  - 应用权限：消息接收
+  - 事件订阅： `im.message.receive_v1`
 - Memos 服务（仅用于 Memos 功能）
 
 无论使用哪种安装方式，都需要配置 `config.yaml` 文件：
@@ -436,19 +439,6 @@ bots:
 - **生产环境**：推荐使用 Docker 部署，便于管理和维护
 - **测试环境**：可以使用 Release 下载的可执行文件或手动编译
 - **开发环境**：使用 `go run` 直接运行，方便调试
-
-### 环境变量配置
-
-除了配置文件外，还支持通过环境变量覆盖配置：
-
-- `FEISHU_BOT_CONFIG`：配置文件路径
-- `FEISHU_BOT_LOG_LEVEL`：日志级别
-- `FEISHU_BOT_LOG_FORMAT`：日志格式
-
-### 网络要求
-
-- **WebSocket 模式**：无需公网 IP，需要能访问飞书 API
-- **Webhook 模式**：需要公网 IP，在飞书开放平台配置回调地址
 
 ## ❓ 常见问题
 
