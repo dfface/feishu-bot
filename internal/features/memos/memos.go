@@ -127,7 +127,7 @@ func (f *MemosFeature) HandleMessage(ctx context.Context, event *larkim.P2Messag
 	msgContent, err := f.baseBot.MsgProcessor.Process(ctx, msg)
 	if err != nil {
 		f.logger.Error("Failed to process message", zap.Error(err))
-		return f.baseBot.SendText(ctx, *sender.SenderId.OpenId, "消息处理失败")
+		return f.baseBot.ReplyText(ctx, *sender.SenderId.OpenId, "消息处理失败")
 	}
 
 	// 处理命令前缀
@@ -142,7 +142,7 @@ func (f *MemosFeature) HandleMessage(ctx context.Context, event *larkim.P2Messag
 	content, filePaths, err := converter.NewMemosConverter().ConvertMessageContent(msgContent)
 	if err != nil {
 		f.logger.Error("Failed to convert message", zap.Error(err))
-		return f.baseBot.SendText(ctx, *sender.SenderId.OpenId, "消息转换失败")
+		return f.baseBot.ReplyText(ctx, *sender.SenderId.OpenId, "消息转换失败")
 	}
 
 	// 创建 Memo
@@ -150,7 +150,7 @@ func (f *MemosFeature) HandleMessage(ctx context.Context, event *larkim.P2Messag
 	memo, attachments, err := f.memosClient.CreateMemoWithResources(ctx, content, visibility, filePaths)
 	if err != nil {
 		f.logger.Error("Failed to create memo", zap.Error(err))
-		return f.baseBot.SendText(ctx, *sender.SenderId.OpenId, "保存失败")
+		return f.baseBot.ReplyText(ctx, *sender.SenderId.OpenId, "保存失败")
 	}
 
 	// 清理本地文件
@@ -164,5 +164,5 @@ func (f *MemosFeature) HandleMessage(ctx context.Context, event *larkim.P2Messag
 	)
 
 	// 回复成功
-	return f.baseBot.SendText(ctx, *sender.SenderId.OpenId, "已保存到 Memos")
+	return f.baseBot.ReplyText(ctx, *sender.SenderId.OpenId, "已保存到 Memos")
 }
