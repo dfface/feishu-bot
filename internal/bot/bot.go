@@ -209,3 +209,102 @@ func (b *BaseBot) OnReactionCreated(handler func(ctx context.Context, event *lar
 func (b *BaseBot) OnReactionDeleted(handler func(ctx context.Context, event *larkim.P2MessageReactionDeletedV1) error) {
 	b.dispatcher.OnP2MessageReactionDeletedV1(handler)
 }
+
+// OnBotP2PChatEntered 便捷方法：注册机器人进入单聊事件处理器
+//
+// 参数:
+//
+//	handler - 事件处理函数
+func (b *BaseBot) OnBotP2PChatEntered(handler func(ctx context.Context, event *larkim.P2ChatAccessEventBotP2pChatEnteredV1) error) {
+	b.dispatcher.OnP2ChatAccessEventBotP2pChatEnteredV1(handler)
+}
+
+// OnBotAdded 便捷方法：注册机器人被添加事件处理器
+//
+// 参数:
+//
+//	handler - 事件处理函数
+func (b *BaseBot) OnBotAdded(handler func(ctx context.Context, event *larkim.P2ChatMemberBotAddedV1) error) {
+	b.dispatcher.OnP2ChatMemberBotAddedV1(handler)
+}
+
+// OnUserAdded 便捷方法：注册用户被添加事件处理器
+//
+// 参数:
+//
+//	handler - 事件处理函数
+func (b *BaseBot) OnUserAdded(handler func(ctx context.Context, event *larkim.P2ChatMemberUserAddedV1) error) {
+	b.dispatcher.OnP2ChatMemberUserAddedV1(handler)
+}
+
+// OnMessageRead 便捷方法：注册消息已读事件处理器
+//
+// 参数:
+//
+//	handler - 事件处理函数
+func (b *BaseBot) OnMessageRead(handler func(ctx context.Context, event *larkim.P2MessageReadV1) error) {
+	b.dispatcher.OnP2MessageReadV1(handler)
+}
+
+// OnMessageRecalled 便捷方法：注册消息撤回事件处理器
+//
+// 参数:
+//
+//	handler - 事件处理函数
+func (b *BaseBot) OnMessageRecalled(handler func(ctx context.Context, event *larkim.P2MessageRecalledV1) error) {
+	b.dispatcher.OnP2MessageRecalledV1(handler)
+}
+
+// OnP2PChatCreate 便捷方法：注册单聊创建事件处理器
+//
+// 参数:
+//
+//	handler - 事件处理函数
+func (b *BaseBot) OnP2PChatCreate(handler func(ctx context.Context, event *larkim.P1P2PChatCreatedV1) error) {
+	b.dispatcher.OnP1P2PChatCreatedV1(handler)
+}
+
+// OnChatDisbanded 便捷方法：注册群聊解散事件处理器
+//
+// 参数:
+//
+//	handler - 事件处理函数
+func (b *BaseBot) OnChatDisbanded(handler func(ctx context.Context, event *larkim.P2ChatDisbandedV1) error) {
+	b.dispatcher.OnP2ChatDisbandedV1(handler)
+}
+
+// OnBotDeleted 便捷方法：注册机器人被移除事件处理器
+//
+// 参数:
+//
+//	handler - 事件处理函数
+func (b *BaseBot) OnBotDeleted(handler func(ctx context.Context, event *larkim.P2ChatMemberBotDeletedV1) error) {
+	b.dispatcher.OnP2ChatMemberBotDeletedV1(handler)
+}
+
+// OnUserDeleted 便捷方法：注册用户被移除事件处理器
+//
+// 参数:
+//
+//	handler - 事件处理函数
+func (b *BaseBot) OnUserDeleted(handler func(ctx context.Context, event *larkim.P2ChatMemberUserDeletedV1) error) {
+	b.dispatcher.OnP2ChatMemberUserDeletedV1(handler)
+}
+
+// OnUserWithdrawn 便捷方法：注册用户退群事件处理器
+//
+// 参数:
+//
+//	handler - 事件处理函数
+func (b *BaseBot) OnUserWithdrawn(handler func(ctx context.Context, event *larkim.P2ChatMemberUserWithdrawnV1) error) {
+	b.dispatcher.OnP2ChatMemberUserWithdrawnV1(handler)
+}
+
+// OnChatUpdated 便捷方法：注册群聊信息更新事件处理器
+//
+// 参数:
+//
+//	handler - 事件处理函数
+func (b *BaseBot) OnChatUpdated(handler func(ctx context.Context, event *larkim.P2ChatUpdatedV1) error) {
+	b.dispatcher.OnP2ChatUpdatedV1(handler)
+}
