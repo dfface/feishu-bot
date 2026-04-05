@@ -9,7 +9,6 @@ import (
 	"context"
 	"strings"
 
-	larkim "github.com/larksuite/oapi-sdk-go/v3/service/im/v1"
 	"go.uber.org/zap"
 
 	"github.com/dfface/feishu-bot/internal/bot"
@@ -121,31 +120,20 @@ func (f *EchoFeature) SetBaseBot(baseBot *bot.BaseBot) {
 //
 // 此方法是功能的核心，负责处理接收到的消息。
 // 主要完成以下工作：
-// 1. 解析消息内容
-// 2. 移除命令前缀
-// 3. 根据消息类型回复（文本消息或富文本消息）
+// 1. 移除命令前缀
+// 2. 根据消息类型回复（文本消息或富文本消息）
 //
 // 参数：
 // - ctx：上下文，用于控制请求的生命周期
-// - event：消息事件，包含消息内容和发送者信息
+// - msgContent：消息内容，包含解析后的消息文本、消息 ID 和发送者信息等
 //
 // 返回值：
 // - error：处理过程中的错误，成功则返回 nil
-func (f *EchoFeature) HandleMessage(ctx context.Context, event *larkim.P2MessageReceiveV1) error {
-	msg := event.Event.Message
-	sender := event.Event.Sender
-
+func (f *EchoFeature) HandleMessage(ctx context.Context, msgContent *message.MessageContent) error {
 	logger.Info("Processing echo message",
-		zap.String("message_id", *msg.MessageId),
-		zap.String("sender_id", *sender.SenderId.OpenId),
+		zap.String("message_id", msgContent.ID),
+		zap.String("sender_id", msgContent.SenderID),
 	)
-
-	// 处理消息
-	msgContent, err := f.baseBot.MsgProcessor.Process(ctx, msg)
-	if err != nil {
-		logger.Error("Failed to process message", zap.Error(err))
-		return f.baseBot.SendText(ctx, *sender.SenderId.OpenId, "消息处理失败")
-	}
 
 	// 处理命令前缀
 	text := msgContent.Text
@@ -158,11 +146,11 @@ func (f *EchoFeature) HandleMessage(ctx context.Context, event *larkim.P2Message
 	switch msgContent.Type {
 	case message.MessageTypePost:
 		// 富文本消息
-		return f.replyRichText(ctx, *msg.MessageId, msgContent)
+		return f.replyRichText(ctx, msgContent.ID, msgContent)
 	default:
 		// 其他消息类型
 		replyContent := text + "\n已收到"
-		return f.baseBot.SendText(ctx, *sender.SenderId.OpenId, replyContent)
+		return f.baseBot.SendText(ctx, msgContent.SenderID, replyContent)
 	}
 }
 
@@ -221,7 +209,7 @@ func (f *EchoFeature) replyRichText(ctx context.Context, messageID string, msgCo
 				builder.AddMd(elem.Text)
 			}
 		}
-		builder.NewLine()
+		builder.NewParagraph()
 	}
 
 	// 添加"已收到"

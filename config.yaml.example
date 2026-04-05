@@ -30,6 +30,7 @@ bots:
   - id: "main-bot"           # 可选: 机器人唯一标识
     name: "多功能机器人"      # 可选: 机器人名称
     # enabled: true           # 可选: 是否启用，默认 true
+    welcome_message_enabled: true     # 可选：是否开启欢迎消息
     feishu:
       app_id: "cli_xxxxxxxxxx"           # 必填: 飞书应用 ID
       app_secret: "xxxxxxxxxx"           # 必填: 飞书应用密钥

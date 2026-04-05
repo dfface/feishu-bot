@@ -165,6 +165,7 @@ bots:
   - id: "multi-bot"
     name: "多功能机器人"
     enabled: true
+    welcome_message_enabled: true  # 是否启用欢迎消息
     feishu:
       app_id: "cli_xxxxxxxxxx"
       app_secret: "xxxxxxxxxx"
@@ -231,6 +232,7 @@ config:
 | id | 机器人唯一标识符 | `multi-bot` |
 | name | 机器人名称 | `多功能机器人` |
 | enabled | 是否启用 | `true` |
+| welcome_message_enabled | 是否启用欢迎消息 | `true` |
 | feishu | 飞书应用配置 | 见下方示例 |
 | features | 功能映射列表 | 见下方示例 |
 

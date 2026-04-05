@@ -9,6 +9,7 @@ package bots
 
 import (
 	"context"
+	"fmt"
 	"strings"
 
 	lark "github.com/larksuite/oapi-sdk-go/v3"
@@ -18,6 +19,7 @@ import (
 	"github.com/dfface/feishu-bot/internal/bot"
 	"github.com/dfface/feishu-bot/internal/features"
 	"github.com/dfface/feishu-bot/internal/logger"
+	"github.com/dfface/feishu-bot/internal/message"
 )
 
 // Bot 统一的机器人实现
@@ -89,11 +91,10 @@ func (b *Bot) SetDefaultFeature(featureID string) {
 // 返回值：
 // - error：处理过程中的错误，成功则返回 nil
 func (b *Bot) HandleMessage(ctx context.Context, event *larkim.P2MessageReceiveV1) error {
-	msg := event.Event.Message
 	sender := event.Event.Sender
 
 	// 解析消息内容
-	msgContent, err := b.MsgProcessor.Process(ctx, msg)
+	msgContent, err := b.ProcessMessage(ctx, event)
 	if err != nil {
 		logger.Error("Failed to process message", zap.Error(err))
 		return b.SendText(ctx, *sender.SenderId.OpenId, "消息处理失败")
@@ -122,5 +123,47 @@ func (b *Bot) HandleMessage(ctx context.Context, event *larkim.P2MessageReceiveV
 	}
 
 	// 调用功能的处理方法
-	return matchedFeature.HandleMessage(ctx, event)
+	return matchedFeature.HandleMessage(ctx, msgContent)
+}
+
+// HandleP2PChatEntered 处理机器人进入单聊事件
+//
+// 此方法在机器人被添加到单聊时调用，发送欢迎消息给用户，
+// 包含机器人的基本信息和可用功能列表。
+//
+// 参数：
+// - ctx：上下文，用于控制请求的生命周期
+// - event：单聊进入事件，包含用户信息
+//
+// 返回值：
+// - error：处理过程中的错误，成功则返回 nil
+func (b *Bot) HandleP2PChatEntered(ctx context.Context, event *larkim.P2ChatAccessEventBotP2pChatEnteredV1) error {
+	// 获取用户的 open_id
+	openID := *event.Event.OperatorId.OpenId
+
+	// 构建欢迎消息（富文本）
+	builder := message.NewRichTextMessageBuilder()
+
+	// 添加标题和问候
+	builder.SetTitle("你好！我是 " + b.Name()).NewParagraph().NewLine()
+	builder.AddText(b.Description())
+
+	// 添加功能列表标题
+	builder.AddBoldText("我提供以下功能：").NewParagraph()
+
+	// 添加功能列表
+	for _, feature := range b.features {
+		builder.AddMd(fmt.Sprintf("- **%s**(%s)", feature.Name(), feature.MatchPrefix()))
+		builder.AddText("  " + feature.Description()).NewParagraph()
+	}
+
+	// 添加使用方法
+	builder.AddBoldText("使用方法：").NewParagraph()
+	builder.AddMd("- 在消息中以功能的前缀开头，例如：`!echo 你好`")
+	if b.defaultFeatureID != "" {
+		builder.AddMd("- 如果你不添加前缀，那么将使用默认功能：" + "**" + b.features[b.defaultFeatureID].Name() + "**")
+	}
+
+	// 发送欢迎消息
+	return b.SendRichText(ctx, openID, builder)
 }

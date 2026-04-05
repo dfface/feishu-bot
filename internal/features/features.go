@@ -10,12 +10,11 @@ package features
 import (
 	"context"
 
-	larkim "github.com/larksuite/oapi-sdk-go/v3/service/im/v1"
-
 	"github.com/dfface/feishu-bot/internal/bot"
 	"github.com/dfface/feishu-bot/internal/config"
 	echoFeature "github.com/dfface/feishu-bot/internal/features/echo"
 	memosFeature "github.com/dfface/feishu-bot/internal/features/memos"
+	"github.com/dfface/feishu-bot/internal/message"
 )
 
 // Feature 功能接口
@@ -50,11 +49,11 @@ type Feature interface {
 	//
 	// 参数：
 	// - ctx：上下文，用于控制请求的生命周期
-	// - event：消息事件，包含消息内容和发送者信息
+	// - msgContent：消息内容，包含解析后的消息文本和其他信息
 	//
 	// 返回值：
 	// - error：处理过程中的错误，成功则返回 nil
-	HandleMessage(ctx context.Context, event *larkim.P2MessageReceiveV1) error
+	HandleMessage(ctx context.Context, msgContent *message.MessageContent) error
 
 	// MatchPrefix 返回匹配前缀
 	//

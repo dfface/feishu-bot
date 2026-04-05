@@ -157,6 +157,9 @@ func (f *BotFactory) createBot(botConfig config.BotConfig) (bot.Bot, error) {
 
 	// 设置消息处理器
 	newBot.OnMessage(newBot.HandleMessage)
+	if botConfig.WelcomeMessageEnabled {
+		newBot.OnBotP2PChatEntered(newBot.HandleP2PChatEntered)
+	}
 
 	return newBot, nil
 }

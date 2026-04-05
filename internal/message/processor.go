@@ -55,12 +55,17 @@ func NewProcessor(client *lark.Client) *Processor {
 //
 //	*MessageContent - 解析后的结构化消息内容
 //	error - 解析失败时返回错误
-func (p *Processor) Process(ctx context.Context, msg *larkim.EventMessage) (*MessageContent, error) {
-	if msg == nil || msg.MessageType == nil {
+func (p *Processor) Process(ctx context.Context, event *larkim.P2MessageReceiveV1) (*MessageContent, error) {
+	if event == nil || event.Event == nil || event.Event.Message == nil || event.Event.Message.MessageType == nil || event.Event.Sender == nil || event.Event.Sender.SenderId == nil || event.Event.Sender.SenderId.OpenId == nil {
+		logger.Warn("Invalid message", zap.Any("event", event))
 		return nil, fmt.Errorf("invalid message")
 	}
 
+	msg := event.Event.Message
+
 	content := &MessageContent{
+		ID:         *msg.MessageId,
+		SenderID:   *event.Event.Sender.SenderId.OpenId,
 		Type:       MessageType(*msg.MessageType),
 		RawContent: msg.Content,
 		Resources:  make([]Resource, 0),

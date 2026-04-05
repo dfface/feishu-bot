@@ -34,9 +34,9 @@ type BaseBot struct {
 	description  string
 	client       *lark.Client
 	dispatcher   *dispatcher.EventDispatcher
-	MsgProcessor message.MessageReceiver // 消息处理器，用于解析接收到的消息
-	MsgSender    message.MessageSender   // 消息发送器，用于发送和回复消息
-	FileUploader message.FileUploader    // 文件上传器，用于上传图片和文件
+	msgProcessor message.MessageReceiver // 消息处理器，用于解析接收到的消息
+	msgSender    message.MessageSender   // 消息发送器，用于发送和回复消息
+	fileUploader message.FileUploader    // 文件上传器，用于上传图片和文件
 }
 
 // NewBaseBot 创建基础机器人
@@ -59,9 +59,9 @@ func NewBaseBot(id, name, description string, client *lark.Client) *BaseBot {
 		description:  description,
 		client:       client,
 		dispatcher:   dispatcher.NewEventDispatcher("", ""),
-		MsgProcessor: message.NewProcessor(client),
-		MsgSender:    message.NewMessageSender(client),
-		FileUploader: message.NewFileUploader(client),
+		msgProcessor: message.NewProcessor(client),
+		msgSender:    message.NewMessageSender(client),
+		fileUploader: message.NewFileUploader(client),
 	}
 }
 
@@ -85,9 +85,19 @@ func (b *BaseBot) GetDispatcher() *dispatcher.EventDispatcher {
 	return b.dispatcher
 }
 
-// GetClient 获取飞书客户端
-func (b *BaseBot) GetClient() *lark.Client {
-	return b.client
+// ProcessMessage 处理消息内容
+//
+// 参数:
+//
+//	ctx - 上下文
+//	msg - 消息对象
+//
+// 返回:
+//
+//	*message.MessageContent - 处理后的消息内容
+//	error - 处理失败时返回错误
+func (b *BaseBot) ProcessMessage(ctx context.Context, msg *larkim.P2MessageReceiveV1) (*message.MessageContent, error) {
+	return b.msgProcessor.Process(ctx, msg)
 }
 
 // ReplyText 便捷方法：回复文本消息
@@ -103,7 +113,7 @@ func (b *BaseBot) GetClient() *lark.Client {
 //	error - 回复失败时返回错误
 func (b *BaseBot) ReplyText(ctx context.Context, messageID string, text string) error {
 	builder := message.NewTextMessageBuilder(text)
-	_, err := b.MsgSender.ReplyMessage(ctx, messageID, builder)
+	_, err := b.msgSender.ReplyMessage(ctx, messageID, builder)
 	if err != nil {
 		logger.Error("Failed to reply text message", zap.Error(err))
 		return err
@@ -126,7 +136,7 @@ func (b *BaseBot) ReplyText(ctx context.Context, messageID string, text string) 
 //
 //	error - 回复失败时返回错误
 func (b *BaseBot) ReplyRichText(ctx context.Context, messageID string, builder *message.RichTextMessageBuilder) error {
-	_, err := b.MsgSender.ReplyMessage(ctx, messageID, builder)
+	_, err := b.msgSender.ReplyMessage(ctx, messageID, builder)
 	if err != nil {
 		logger.Error("Failed to reply rich text message", zap.Error(err))
 		return err
@@ -149,7 +159,7 @@ func (b *BaseBot) ReplyRichText(ctx context.Context, messageID string, builder *
 //	error - 发送失败时返回错误
 func (b *BaseBot) SendText(ctx context.Context, receiveID string, text string) error {
 	builder := message.NewTextMessageBuilder(text)
-	_, err := b.MsgSender.SendMessage(ctx, message.ReceiveIDTypeOpenID, receiveID, builder)
+	_, err := b.msgSender.SendMessage(ctx, message.ReceiveIDTypeOpenID, receiveID, builder)
 	if err != nil {
 		logger.Error("Failed to send text message", zap.Error(err))
 		return err
@@ -157,6 +167,28 @@ func (b *BaseBot) SendText(ctx context.Context, receiveID string, text string) e
 	logger.Info("Text message sent successfully",
 		zap.String("receive_id", receiveID),
 		zap.String("text", text))
+	return nil
+}
+
+// SendRichText 便捷方法：发送富文本消息给用户
+//
+// 参数:
+//
+//	ctx - 上下文
+//	receiveID - 接收者 ID（open_id）
+//	builder - 富文本消息构建器
+//
+// 返回:
+//
+//	error - 发送失败时返回错误
+func (b *BaseBot) SendRichText(ctx context.Context, receiveID string, builder *message.RichTextMessageBuilder) error {
+	_, err := b.msgSender.SendMessage(ctx, message.ReceiveIDTypeOpenID, receiveID, builder)
+	if err != nil {
+		logger.Error("Failed to send rich text message", zap.Error(err))
+		return err
+	}
+	logger.Info("Rich text message sent successfully",
+		zap.String("receive_id", receiveID))
 	return nil
 }
 
@@ -172,7 +204,7 @@ func (b *BaseBot) SendText(ctx context.Context, receiveID string, text string) e
 //
 //	error - 添加失败时返回错误
 func (b *BaseBot) AddReaction(ctx context.Context, messageID string, emojiType message.EmojiType) error {
-	_, err := b.MsgSender.AddReaction(ctx, messageID, emojiType)
+	_, err := b.msgSender.AddReaction(ctx, messageID, emojiType)
 	if err != nil {
 		logger.Error("Failed to add reaction", zap.Error(err))
 		return err

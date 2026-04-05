@@ -90,7 +90,7 @@ type MessageReceiver interface {
 	// 返回:
 	//   *MessageContent - 解析后的结构化消息内容
 	//   error - 如果处理失败返回错误
-	Process(ctx context.Context, msg *larkim.EventMessage) (*MessageContent, error)
+	Process(ctx context.Context, msg *larkim.P2MessageReceiveV1) (*MessageContent, error)
 }
 
 // RichTextElement 富文本元素
@@ -126,6 +126,8 @@ type RichTextContent struct {
 // MessageContent 消息内容
 // 存储解析后的结构化消息内容，包含各种类型消息的详细信息
 type MessageContent struct {
+	ID            string                 // 消息 ID，用于唯一标识消息
+	SenderID      string                 // 发送者 ID，用于关联消息和用户
 	Type          MessageType            // 消息类型：text、post、image、file、audio、media、sticker、interactive、share_chat、share_user、system、todo、vote
 	Text          string                 // 消息文本内容，对于文本消息是完整内容，对于其他消息是摘要
 	RawContent    *string                // 原始消息内容 JSON 字符串

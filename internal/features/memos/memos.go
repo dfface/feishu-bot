@@ -10,13 +10,13 @@ import (
 	"os"
 	"strings"
 
-	larkim "github.com/larksuite/oapi-sdk-go/v3/service/im/v1"
 	"go.uber.org/zap"
 
 	"github.com/dfface/feishu-bot/internal/bot"
 	"github.com/dfface/feishu-bot/internal/config"
 	"github.com/dfface/feishu-bot/internal/converter"
 	"github.com/dfface/feishu-bot/internal/logger"
+	"github.com/dfface/feishu-bot/internal/message"
 	"github.com/dfface/feishu-bot/internal/utils"
 	memos "github.com/dfface/feishu-bot/third_party/memos"
 )
@@ -157,35 +157,24 @@ func (f *MemosFeature) SetMemosClient(client *memos.Client) {
 //
 // 此方法是功能的核心，负责处理接收到的消息。
 // 主要完成以下工作：
-// 1. 解析消息内容
-// 2. 移除命令前缀
-// 3. 转换消息格式（支持文本、富文本、图片、文件等）
-// 4. 上传附件到 Memos
-// 5. 创建 Memo
-// 6. 清理临时文件
-// 7. 回复用户
+// 1. 移除命令前缀
+// 2. 转换消息格式（支持文本、富文本、图片、文件等）
+// 3. 上传附件到 Memos
+// 4. 创建 Memo
+// 5. 清理临时文件
+// 6. 回复用户
 //
 // 参数：
 // - ctx：上下文，用于控制请求的生命周期
-// - event：消息事件，包含消息内容和发送者信息
+// - msgContent：消息内容，包含解析后的消息文本、消息 ID 和发送者信息等
 //
 // 返回值：
 // - error：处理过程中的错误，成功则返回 nil
-func (f *MemosFeature) HandleMessage(ctx context.Context, event *larkim.P2MessageReceiveV1) error {
-	msg := event.Event.Message
-	sender := event.Event.Sender
-
+func (f *MemosFeature) HandleMessage(ctx context.Context, msgContent *message.MessageContent) error {
 	logger.Info("Processing memos message",
-		zap.String("message_id", *msg.MessageId),
-		zap.String("sender_id", *sender.SenderId.OpenId),
+		zap.String("message_id", msgContent.ID),
+		zap.String("sender_id", msgContent.SenderID),
 	)
-
-	// 处理消息
-	msgContent, err := f.baseBot.MsgProcessor.Process(ctx, msg)
-	if err != nil {
-		logger.Error("Failed to process message", zap.Error(err))
-		return f.baseBot.ReplyText(ctx, *sender.SenderId.OpenId, "消息处理失败")
-	}
 
 	// 处理命令前缀
 	text := msgContent.Text
@@ -199,7 +188,7 @@ func (f *MemosFeature) HandleMessage(ctx context.Context, event *larkim.P2Messag
 	content, filePaths, err := converter.NewMemosConverter().ConvertMessageContent(msgContent)
 	if err != nil {
 		logger.Error("Failed to convert message", zap.Error(err))
-		return f.baseBot.ReplyText(ctx, *sender.SenderId.OpenId, "消息转换失败")
+		return f.baseBot.SendText(ctx, msgContent.SenderID, "消息转换失败")
 	}
 
 	// 创建 Memo
@@ -207,7 +196,7 @@ func (f *MemosFeature) HandleMessage(ctx context.Context, event *larkim.P2Messag
 	memo, attachments, err := f.memosClient.CreateMemoWithResources(ctx, content, visibility, filePaths)
 	if err != nil {
 		logger.Error("Failed to create memo", zap.Error(err))
-		return f.baseBot.ReplyText(ctx, *sender.SenderId.OpenId, "保存失败")
+		return f.baseBot.SendText(ctx, msgContent.SenderID, "保存失败")
 	}
 
 	// 清理本地文件
@@ -221,5 +210,5 @@ func (f *MemosFeature) HandleMessage(ctx context.Context, event *larkim.P2Messag
 	)
 
 	// 回复成功
-	return f.baseBot.ReplyText(ctx, *sender.SenderId.OpenId, "已保存到 Memos")
+	return f.baseBot.SendText(ctx, msgContent.SenderID, "已保存到 Memos")
 }

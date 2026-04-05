@@ -182,55 +182,12 @@ func loadConfig(configPath string) (*config.Config, error) {
 		return nil, fmt.Errorf("failed to unmarshal config: %w", err)
 	}
 
-	// 设置默认功能配置
 	if len(cfg.Features) == 0 {
-		cfg.Features = []config.FeatureConfig{
-			{
-				ID:          "echo_you_defined",
-				InternalID:  "echo",
-				Name:        "回声功能",
-				Enabled:     true,
-				Description: "原样回复消息",
-				Config: map[string]interface{}{
-					"prefix": "!echo",
-				},
-			},
-			{
-				ID:          "memos_you_defined",
-				InternalID:  "memos",
-				Name:        "Memos 保存",
-				Enabled:     true,
-				Description: "保存消息到 Memos",
-				Config: map[string]interface{}{
-					"prefix": "!memos",
-				},
-			},
-		}
+		return nil, fmt.Errorf("no features configured")
 	}
 
-	// 设置默认机器人配置
 	if len(cfg.Bots) == 0 {
-		cfg.Bots = []config.BotConfig{
-			{
-				ID:      "multi-bot",
-				Name:    "多功能机器人",
-				Enabled: true,
-				Feishu: config.FeishuConfig{
-					AppID:        "",
-					AppSecret:    "",
-					UseWebSocket: true,
-				},
-				Features: []config.FeatureMapping{
-					{
-						FeatureID: "echo_you_defined",
-						Default:   true,
-					},
-					{
-						FeatureID: "memos_you_defined",
-					},
-				},
-			},
-		}
+		return nil, fmt.Errorf("no bots configured")
 	}
 
 	return &cfg, nil
@@ -290,7 +247,6 @@ func validateConfig(cfg *config.Config) error {
 // 参数：
 // - v：Viper 实例
 func setDefaults(v *viper.Viper) {
-	v.SetDefault("server.port", 8080)
 	v.SetDefault("log.level", "info")
 	v.SetDefault("log.format", "json")
 }

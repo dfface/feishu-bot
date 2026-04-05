@@ -52,11 +52,13 @@ func (b *TextMessageBuilder) MessageType() string {
 	return larkim.MsgTypeText
 }
 
+type RichTextParagraph []*RichTextElement
+
 // RichTextMessageBuilder 富文本消息构建器
 // 用于构建复杂的富文本消息，支持文本、链接、@用户、图片、媒体、表情等多种元素
 type RichTextMessageBuilder struct {
 	title   string
-	content [][]*RichTextElement
+	content []RichTextParagraph
 }
 
 // NewRichTextMessageBuilder 创建富文本消息构建器
@@ -66,7 +68,7 @@ type RichTextMessageBuilder struct {
 //	*RichTextMessageBuilder - 初始化好的富文本消息构建器
 func NewRichTextMessageBuilder() *RichTextMessageBuilder {
 	return &RichTextMessageBuilder{
-		content: make([][]*RichTextElement, 0),
+		content: make([]RichTextParagraph, 0),
 	}
 }
 
@@ -94,6 +96,10 @@ func (b *RichTextMessageBuilder) SetTitle(title string) *RichTextMessageBuilder 
 //
 //	*RichTextMessageBuilder - 构建器自身，支持链式调用
 func (b *RichTextMessageBuilder) AddText(text string) *RichTextMessageBuilder {
+	if text == "" {
+		// text 必填
+		text = " "
+	}
 	return b.AddElement(&RichTextElement{Tag: string(RichTextTagText), Text: text, UnEscape: false})
 }
 
@@ -108,6 +114,10 @@ func (b *RichTextMessageBuilder) AddText(text string) *RichTextMessageBuilder {
 //
 //	*RichTextMessageBuilder - 构建器自身，支持链式调用
 func (b *RichTextMessageBuilder) AddTextWithStyle(text string, styles ...string) *RichTextMessageBuilder {
+	if text == "" {
+		// text 必填
+		text = " "
+	}
 	return b.AddElement(&RichTextElement{Tag: string(RichTextTagText), Text: text, UnEscape: false, Style: styles})
 }
 
@@ -314,8 +324,8 @@ func (b *RichTextMessageBuilder) AddMd(text string) *RichTextMessageBuilder {
 	return b.AddElement(&RichTextElement{Tag: string(RichTextTagMd), Text: text})
 }
 
-// AddElement 添加元素到当前行
-// 如果当前没有行，会自动创建一行
+// AddElement 添加元素到当前段落
+// 如果当前没有段落，会自动创建一个段落
 //
 // 参数:
 //
@@ -326,33 +336,42 @@ func (b *RichTextMessageBuilder) AddMd(text string) *RichTextMessageBuilder {
 //	*RichTextMessageBuilder - 构建器自身，支持链式调用
 func (b *RichTextMessageBuilder) AddElement(element *RichTextElement) *RichTextMessageBuilder {
 	if len(b.content) == 0 {
-		b.content = append(b.content, make([]*RichTextElement, 0))
+		b.content = append(b.content, make(RichTextParagraph, 0))
 	}
-	lastLine := len(b.content) - 1
-	b.content[lastLine] = append(b.content[lastLine], element)
+	lastParagraph := len(b.content) - 1
+	b.content[lastParagraph] = append(b.content[lastParagraph], element)
 	return b
 }
 
-// NewLine 开始新的一行
+// NewLine 在当前段落中添加一个换行符
 //
 // 返回:
 //
 //	*RichTextMessageBuilder - 构建器自身，支持链式调用
 func (b *RichTextMessageBuilder) NewLine() *RichTextMessageBuilder {
-	b.content = append(b.content, make([]*RichTextElement, 0))
-	return b
+	return b.AddText("\n")
 }
 
-// AddLine 添加一行内容
-//
-// 参数:
-//
-//	elements - 该行包含的富文本元素列表
+// NewParagraph 开始新的一个段落
 //
 // 返回:
 //
 //	*RichTextMessageBuilder - 构建器自身，支持链式调用
-func (b *RichTextMessageBuilder) AddLine(elements ...*RichTextElement) *RichTextMessageBuilder {
+func (b *RichTextMessageBuilder) NewParagraph() *RichTextMessageBuilder {
+	b.content = append(b.content, make(RichTextParagraph, 0))
+	return b
+}
+
+// AddParagraph 添加一个段落内容
+//
+// 参数:
+//
+//	elements - 该段落包含的富文本元素列表
+//
+// 返回:
+//
+//	*RichTextMessageBuilder - 构建器自身，支持链式调用
+func (b *RichTextMessageBuilder) AddParagraph(elements ...*RichTextElement) *RichTextMessageBuilder {
 	b.content = append(b.content, elements)
 	return b
 }
