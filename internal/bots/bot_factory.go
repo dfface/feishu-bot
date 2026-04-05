@@ -109,7 +109,7 @@ func (f *BotFactory) createBot(botConfig config.BotConfig) (bot.Bot, error) {
 
 	// 为每个机器人创建独立的 lark.Client，使用机器人自己的飞书配置
 	feishuClient := lark.NewClient(botConfig.Feishu.AppID, botConfig.Feishu.AppSecret)
-	newBot := NewBot(botConfig.Name, feishuClient)
+	newBot := NewBot(botConfig.ID, botConfig.Name, botConfig.Description, feishuClient)
 
 	// 注册功能
 	for _, featureMapping := range botConfig.Features {
@@ -149,6 +149,8 @@ func (f *BotFactory) createBot(botConfig config.BotConfig) (bot.Bot, error) {
 
 		// 设置默认功能
 		if featureMapping.Default {
+			newBot.SetDefaultFeature(feature.ID())
+		} else if len(f.config.Features) == 1 {
 			newBot.SetDefaultFeature(feature.ID())
 		}
 	}

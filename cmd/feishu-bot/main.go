@@ -86,14 +86,14 @@ func main() {
 		// 查找机器人配置，获取飞书配置
 		var botConfig *config.BotConfig
 		for _, cfgBot := range cfg.Bots {
-			if cfgBot.Name == b.Name() {
+			if cfgBot.ID == b.ID() {
 				botConfig = &cfgBot
 				break
 			}
 		}
 
 		if botConfig == nil {
-			logger.Fatal("Bot config not found", zap.String("bot_name", b.Name()))
+			logger.Fatal("Bot config not found", zap.String("bot_id", b.ID()))
 		}
 
 		// 创建 WebSocket 客户端，使用机器人自己的飞书配置

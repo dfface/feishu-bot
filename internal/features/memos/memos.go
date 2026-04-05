@@ -16,6 +16,7 @@ import (
 	"github.com/dfface/feishu-bot/internal/bot"
 	"github.com/dfface/feishu-bot/internal/config"
 	"github.com/dfface/feishu-bot/internal/converter"
+	"github.com/dfface/feishu-bot/internal/logger"
 	"github.com/dfface/feishu-bot/internal/utils"
 	memos "github.com/dfface/feishu-bot/third_party/memos"
 )
@@ -34,9 +35,7 @@ type MemosFeature struct {
 	description string              // 功能描述
 	prefix      string              // 匹配前缀，用于识别命令
 	baseBot     *bot.BaseBot        // 基础机器人实例，提供消息处理和发送能力
-	logger      *zap.Logger         // 日志记录器
 	memosClient *memos.Client       // Memos API 客户端
-	cfg         *config.Config      // 全局配置
 	memosConfig *config.MemosConfig // Memos 特定配置
 }
 
@@ -154,26 +153,6 @@ func (f *MemosFeature) SetMemosClient(client *memos.Client) {
 	f.memosClient = client
 }
 
-// SetConfig 设置配置
-//
-// 此方法用于设置全局配置，主要用于测试和依赖注入。
-//
-// 参数：
-// - cfg：全局配置实例
-func (f *MemosFeature) SetConfig(cfg *config.Config) {
-	f.cfg = cfg
-}
-
-// SetMemosConfig 设置 Memos 配置
-//
-// 此方法用于设置 Memos 特定配置，主要用于测试和依赖注入。
-//
-// 参数：
-// - memosConfig：Memos 配置实例
-func (f *MemosFeature) SetMemosConfig(memosConfig *config.MemosConfig) {
-	f.memosConfig = memosConfig
-}
-
 // HandleMessage 处理消息
 //
 // 此方法是功能的核心，负责处理接收到的消息。
@@ -196,7 +175,7 @@ func (f *MemosFeature) HandleMessage(ctx context.Context, event *larkim.P2Messag
 	msg := event.Event.Message
 	sender := event.Event.Sender
 
-	f.logger.Info("Processing memos message",
+	logger.Info("Processing memos message",
 		zap.String("message_id", *msg.MessageId),
 		zap.String("sender_id", *sender.SenderId.OpenId),
 	)
@@ -204,7 +183,7 @@ func (f *MemosFeature) HandleMessage(ctx context.Context, event *larkim.P2Messag
 	// 处理消息
 	msgContent, err := f.baseBot.MsgProcessor.Process(ctx, msg)
 	if err != nil {
-		f.logger.Error("Failed to process message", zap.Error(err))
+		logger.Error("Failed to process message", zap.Error(err))
 		return f.baseBot.ReplyText(ctx, *sender.SenderId.OpenId, "消息处理失败")
 	}
 
@@ -219,7 +198,7 @@ func (f *MemosFeature) HandleMessage(ctx context.Context, event *larkim.P2Messag
 	// 使用转换器转换消息
 	content, filePaths, err := converter.NewMemosConverter().ConvertMessageContent(msgContent)
 	if err != nil {
-		f.logger.Error("Failed to convert message", zap.Error(err))
+		logger.Error("Failed to convert message", zap.Error(err))
 		return f.baseBot.ReplyText(ctx, *sender.SenderId.OpenId, "消息转换失败")
 	}
 
@@ -227,7 +206,7 @@ func (f *MemosFeature) HandleMessage(ctx context.Context, event *larkim.P2Messag
 	visibility := memos.Visibility(f.memosConfig.DefaultVisibility)
 	memo, attachments, err := f.memosClient.CreateMemoWithResources(ctx, content, visibility, filePaths)
 	if err != nil {
-		f.logger.Error("Failed to create memo", zap.Error(err))
+		logger.Error("Failed to create memo", zap.Error(err))
 		return f.baseBot.ReplyText(ctx, *sender.SenderId.OpenId, "保存失败")
 	}
 
@@ -236,7 +215,7 @@ func (f *MemosFeature) HandleMessage(ctx context.Context, event *larkim.P2Messag
 		_ = os.Remove(path)
 	}
 
-	f.logger.Info("Memo created",
+	logger.Info("Memo created",
 		zap.String("memo_name", memo.Name),
 		zap.Int("attachments", len(attachments)),
 	)

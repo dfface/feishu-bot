@@ -14,10 +14,14 @@ import (
 )
 
 // Bot 机器人接口
-// 定义所有机器人必须实现的最小接口
+// 定义所有机器人必须实现的方法
 type Bot interface {
-	// Name 返回机器人名称
+	// ID 获取机器人唯一标识符
+	ID() string
+	// Name 获取机器人名称
 	Name() string
+	// Description 获取机器人描述
+	Description() string
 	// GetDispatcher 获取事件分发器，用于 WebSocket 事件处理
 	GetDispatcher() *dispatcher.EventDispatcher
 }
@@ -25,7 +29,9 @@ type Bot interface {
 // BaseBot 基础机器人实现
 // 提供所有机器人共有的功能和组件
 type BaseBot struct {
+	id           string
 	name         string
+	description  string
 	client       *lark.Client
 	dispatcher   *dispatcher.EventDispatcher
 	MsgProcessor message.MessageReceiver // 消息处理器，用于解析接收到的消息
@@ -38,15 +44,19 @@ type BaseBot struct {
 //
 // 参数:
 //
+//	id - 机器人唯一标识符
 //	name - 机器人名称
+//	description - 机器人描述
 //	client - 飞书 API 客户端
 //
 // 返回:
 //
 //	*BaseBot - 初始化好的基础机器人实例
-func NewBaseBot(name string, client *lark.Client) *BaseBot {
+func NewBaseBot(id, name, description string, client *lark.Client) *BaseBot {
 	return &BaseBot{
+		id:           id,
 		name:         name,
+		description:  description,
 		client:       client,
 		dispatcher:   dispatcher.NewEventDispatcher("", ""),
 		MsgProcessor: message.NewProcessor(client),
@@ -55,9 +65,19 @@ func NewBaseBot(name string, client *lark.Client) *BaseBot {
 	}
 }
 
+// ID 返回机器人唯一标识符
+func (b *BaseBot) ID() string {
+	return b.id
+}
+
 // Name 返回机器人名称
 func (b *BaseBot) Name() string {
 	return b.name
+}
+
+// Description 返回机器人描述
+func (b *BaseBot) Description() string {
+	return b.description
 }
 
 // GetDispatcher 获取事件分发器

@@ -37,14 +37,16 @@ type Bot struct {
 // 此函数创建一个新的机器人实例，初始化基础机器人和功能映射表。
 //
 // 参数：
+// - id：机器人唯一标识符
 // - name：机器人名称
+// - description：机器人描述
 // - client：飞书 API 客户端
 //
 // 返回值：
 // - *Bot：创建的机器人实例
-func NewBot(name string, client *lark.Client) *Bot {
+func NewBot(id, name, description string, client *lark.Client) *Bot {
 	return &Bot{
-		BaseBot:  bot.NewBaseBot(name, client),
+		BaseBot:  bot.NewBaseBot(id, name, description, client),
 		features: make(map[string]features.Feature),
 	}
 }

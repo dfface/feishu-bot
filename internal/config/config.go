@@ -48,12 +48,13 @@ type FeatureConfig struct {
 // 每个机器人都有自己的配置，包括 ID、名称、是否启用、功能映射和飞书配置。
 // 支持多个机器人实例，每个机器人可以有不同的飞书应用。
 type BotConfig struct {
-	ID       string                 `mapstructure:"id"`       // 机器人唯一标识符
-	Name     string                 `mapstructure:"name"`     // 机器人名称
-	Enabled  bool                   `mapstructure:"enabled"`  // 是否启用
-	Feishu   FeishuConfig           `mapstructure:"feishu"`   // 飞书配置
-	Features []FeatureMapping       `mapstructure:"features"` // 功能映射列表
-	Config   map[string]interface{} `mapstructure:"config"`   // 自定义配置
+	ID          string                 `mapstructure:"id"`          // 机器人唯一标识符
+	Name        string                 `mapstructure:"name"`        // 机器人名称
+	Description string                 `mapstructure:"description"` // 机器人描述（可选）
+	Enabled     bool                   `mapstructure:"enabled"`     // 是否启用
+	Feishu      FeishuConfig           `mapstructure:"feishu"`      // 飞书配置
+	Features    []FeatureMapping       `mapstructure:"features"`    // 功能映射列表
+	Config      map[string]interface{} `mapstructure:"config"`      // 自定义配置
 }
 
 // FeatureMapping 功能映射配置
