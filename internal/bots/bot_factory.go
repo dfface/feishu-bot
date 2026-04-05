@@ -162,6 +162,18 @@ func (f *BotFactory) createBot(botConfig config.BotConfig) (bot.Bot, error) {
 	} else {
 		newBot.OnBotP2PChatEntered(newBot.HandleP2PChatEnteredReturnEmpty)
 	}
+	newBot.OnMessageRead(newBot.HandleMessageReadReturnEmpty)
+	newBot.OnReactionCreated(newBot.HandleMessageReactionCreatedReturnEmpty)
+	newBot.OnReactionDeleted(newBot.HandleMessageReactionDeletedReturnEmpty)
+	newBot.OnBotAdded(newBot.HandleBotAddedReturnEmpty)
+	newBot.OnUserAdded(newBot.HandleUserAddedReturnEmpty)
+	newBot.OnMessageRecalled(newBot.HandleMessageRecalledReturnEmpty)
+	newBot.OnP2PChatCreate(newBot.HandleChatCreateReturnEmpty)
+	newBot.OnChatDisbanded(newBot.HandleChatDisbandedReturnEmpty)
+	newBot.OnBotDeleted(newBot.HandleBotDeletedReturnEmpty)
+	newBot.OnUserDeleted(newBot.HandleUserDeletedReturnEmpty)
+	newBot.OnUserWithdrawn(newBot.HandleUserWithdrawnReturnEmpty)
+	newBot.OnChatUpdated(newBot.HandleChatUpdatedReturnEmpty)
 
 	return newBot, nil
 }

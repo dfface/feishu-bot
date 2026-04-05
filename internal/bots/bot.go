@@ -97,6 +97,32 @@ func (b *Bot) cleanupProcessedMessages() {
 	}
 }
 
+// checkIdempotency 检查消息是否已经被处理过（幂等处理）
+//
+// 参数：
+// - msgID：消息 ID
+//
+// 返回值：
+// - bool：如果消息已经被处理过，返回 true；否则返回 false
+func (b *Bot) checkIdempotency(ID string) bool {
+	// 定期清理过期的消息 ID
+	if len(b.processedMessages)%10 == 0 { // 每处理 10 条消息清理一次
+		b.cleanupProcessedMessages()
+	}
+
+	// 幂等处理：检查消息是否已经被处理过
+	if processTime, exists := b.processedMessages[ID]; exists {
+		if time.Since(processTime) < DefaultIdempotencyInterval {
+			logger.Info("Message already processed within 3 seconds", zap.String("message_id", ID))
+			return true
+		}
+	}
+
+	// 标记消息为已处理
+	b.processedMessages[ID] = time.Now()
+	return false
+}
+
 // HandleMessage 处理消息
 //
 // 此方法是消息处理的核心，负责接收消息并路由到相应的功能。
@@ -124,21 +150,12 @@ func (b *Bot) HandleMessage(ctx context.Context, event *larkim.P2MessageReceiveV
 		return b.SendText(ctx, *sender.SenderId.OpenId, "消息处理失败")
 	}
 
-	// 定期清理过期的消息 ID
-	if len(b.processedMessages)%10 == 0 { // 每处理 10 条消息清理一次
-		b.cleanupProcessedMessages()
+	// 幂等处理：检查消息是否已经被处理过
+	if b.checkIdempotency(msgContent.ID) {
+		return nil
 	}
 
-	// 幂等处理：检查消息是否已经被处理过（3秒内的相同消息不处理）
-	if processTime, exists := b.processedMessages[msgContent.ID]; exists {
-		if time.Since(processTime) < DefaultIdempotencyInterval {
-			logger.Info("Message already processed within 3 seconds", zap.String("message_id", msgContent.ID))
-			return nil
-		}
-	}
-
-	// 标记消息为已处理
-	b.processedMessages[msgContent.ID] = time.Now()
+	logger.Info("HandleMessage", zap.Any("message", msgContent))
 
 	var matchedFeature features.Feature
 
@@ -192,6 +209,19 @@ func (b *Bot) HandleP2PChatEntered(ctx context.Context, event *larkim.P2ChatAcce
 	// 获取用户的 open_id
 	openID := *event.Event.OperatorId.OpenId
 
+	// 使用 Header.EventID 进行幂等处理
+	if event == nil || event.EventV2Base == nil || event.EventV2Base.Header == nil {
+		logger.Error("Invalid event", zap.Any("event", event))
+		return nil
+	}
+	eventID := event.EventV2Base.Header.EventID
+	// 幂等处理：检查事件是否已经被处理过
+	if b.checkIdempotency(eventID) {
+		return nil
+	}
+
+	logger.Info("P2PChatEntered", zap.Any("event", event))
+
 	// 构建欢迎消息（富文本）
 	builder := message.NewRichTextMessageBuilder()
 
@@ -234,5 +264,66 @@ func (b *Bot) matchFeature(text string) (features.Feature, string) {
 }
 
 func (b *Bot) HandleP2PChatEnteredReturnEmpty(ctx context.Context, event *larkim.P2ChatAccessEventBotP2pChatEnteredV1) error {
+	logger.Info("P2PChatEnteredReturnEmpty", zap.Any("event", event))
+	return nil
+}
+
+func (b *Bot) HandleMessageReadReturnEmpty(ctx context.Context, event *larkim.P2MessageReadV1) error {
+	logger.Info("MessageReadReturnEmpty", zap.Any("event", event))
+	return nil
+}
+
+func (b *Bot) HandleMessageReactionCreatedReturnEmpty(ctx context.Context, event *larkim.P2MessageReactionCreatedV1) error {
+	logger.Info("MessageReactionCreatedReturnEmpty", zap.Any("event", event))
+	return nil
+}
+
+func (b *Bot) HandleMessageReactionDeletedReturnEmpty(ctx context.Context, event *larkim.P2MessageReactionDeletedV1) error {
+	logger.Info("MessageReactionDeletedReturnEmpty", zap.Any("event", event))
+	return nil
+}
+
+func (b *Bot) HandleBotAddedReturnEmpty(ctx context.Context, event *larkim.P2ChatMemberBotAddedV1) error {
+	logger.Info("BotAddedReturnEmpty", zap.Any("event", event))
+	return nil
+}
+
+func (b *Bot) HandleUserAddedReturnEmpty(ctx context.Context, event *larkim.P2ChatMemberUserAddedV1) error {
+	logger.Info("UserAddedReturnEmpty", zap.Any("event", event))
+	return nil
+}
+
+func (b *Bot) HandleMessageRecalledReturnEmpty(ctx context.Context, event *larkim.P2MessageRecalledV1) error {
+	logger.Info("MessageRecalledReturnEmpty", zap.Any("event", event))
+	return nil
+}
+
+func (b *Bot) HandleChatCreateReturnEmpty(ctx context.Context, event *larkim.P1P2PChatCreatedV1) error {
+	logger.Info("ChatCreateReturnEmpty", zap.Any("event", event))
+	return nil
+}
+
+func (b *Bot) HandleChatDisbandedReturnEmpty(ctx context.Context, event *larkim.P2ChatDisbandedV1) error {
+	logger.Info("ChatDisbandedReturnEmpty", zap.Any("event", event))
+	return nil
+}
+
+func (b *Bot) HandleBotDeletedReturnEmpty(ctx context.Context, event *larkim.P2ChatMemberBotDeletedV1) error {
+	logger.Info("BotDeletedReturnEmpty", zap.Any("event", event))
+	return nil
+}
+
+func (b *Bot) HandleUserDeletedReturnEmpty(ctx context.Context, event *larkim.P2ChatMemberUserDeletedV1) error {
+	logger.Info("UserDeletedReturnEmpty", zap.Any("event", event))
+	return nil
+}
+
+func (b *Bot) HandleUserWithdrawnReturnEmpty(ctx context.Context, event *larkim.P2ChatMemberUserWithdrawnV1) error {
+	logger.Info("UserWithdrawnReturnEmpty", zap.Any("event", event))
+	return nil
+}
+
+func (b *Bot) HandleChatUpdatedReturnEmpty(ctx context.Context, event *larkim.P2ChatUpdatedV1) error {
+	logger.Info("ChatUpdatedReturnEmpty", zap.Any("event", event))
 	return nil
 }
