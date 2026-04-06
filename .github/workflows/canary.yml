@@ -1,9 +1,9 @@
-name: Upload to Docker
+name: Docker Canary Build
 
 # Controls when the action will run. 
 on:
-  release: 
-    types: [created]
+  push:
+    branches: [ main ]
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
 
@@ -24,11 +24,7 @@ jobs:
             ${{ secrets.DOCKERHUB_USERNAME }}/${{ secrets.APP_NAME }}
           # generate Docker tags based on the following events/attributes
           tags: |
-            type=semver,pattern={{version}}
-            # 新增：release 触发时添加 latest 标签
-            type=raw,value=latest,enable=${{ github.event_name == 'release' }}
-            # 可选：手动触发时也添加 latest 标签
-            type=raw,value=latest,enable=${{ github.event_name == 'workflow_dispatch' }}            
+            type=raw,value=latest,enable=${{ github.event_name == 'push' }}
       -
         name: Set up QEMU
         uses: docker/setup-qemu-action@v2
@@ -52,7 +48,7 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          platforms: linux/amd64,linux/arm64  # 关键：指定amd64和arm64架构
+          platforms: linux/amd64 # 关键：指定amd64和arm64架构
           builder: ${{ steps.buildx.outputs.name }}  # 使用Buildx构建器
 
       # Send Feishu notification
